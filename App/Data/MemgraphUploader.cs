@@ -1,97 +1,42 @@
 using System;
-using Neo4j.Driver;
-using Newtonsoft.Json.Linq;
-using Microsoft.Extensions.Configuration;
+using System.IO;
+using System.Threading.Tasks;
+using System.Collections.Generic;
+using System.Linq;
+using App.Models;
+using App.Export;
 
 namespace App.Data;
 
 public class MemgraphUploader
 {
-     private readonly IDriver _driver;
-
-     public MemgraphUploader(IConfiguration configuration)
+    public async Task ExportAsync(Person person, Dictionary<string, string> labelDict)
      {
-          var connectionString = configuration.GetConnectionString("Memgraph");
-          _driver = GraphDatabase.Driver(connectionString, AuthTokens.None);
-     }
-
-
-     public async Task UploadDataAsync(JArray data)
-     {
-          try
-    {
-        using (var session = _driver.AsyncSession())
+        try
         {
-            await session.WriteTransactionAsync(async tx =>
-            {
-                // Create Alan Turing node
-                var query = @"
-                MERGE (p:Person {name: $name, birthDate: $birthDate, deathDate: $deathDate})
-                MERGE (o:Occupation {name: $occupation})
-                MERGE (f:Field {name: $fieldOfWork})
-                MERGE (e:Institution {name: $educatedAt})
-                MERGE (c:Country {name: $country})
-                MERGE (advisor:Person {name: 'Alonzo Church'})  // Doctoral advisor
-                MERGE (student:Person {name: 'Robin Gandy'})  // Student
+            string exportPath = Path.Combine("Exported", "Memgraph");
+            Directory.CreateDirectory(exportPath);
 
-                // Create relationships
-                MERGE (p)-[:HAS_OCCUPATION]->(o)
-                MERGE (p)-[:WORKS_IN]->(f)
-                MERGE (p)-[:EDUCATED_AT]->(e)
-                MERGE (p)-[:CITIZEN_OF]->(c)
-                MERGE (p)-[:ADVISED_BY]->(advisor)
-                MERGE (p)-[:MENTORED]->(student)";
+            await CsvExporter.WritePersonMemgraphAsync(person, exportPath, labelDict);
+            await CsvExporter.WriteOccupationsMemgraphAsync(person.Occupations, exportPath, labelDict);
+            await CsvExporter.WriteAwardsMemgraphAsync(person.Awards, exportPath, labelDict);
+            await CsvExporter.WriteInstitutionsMemgraphAsync(person.Education, exportPath, labelDict);
+            await CsvExporter.WriteReligionsMemgraphAsync(person.Religion, exportPath, labelDict);
 
-                await tx.RunAsync(query, new 
-                { 
-                    name = "Alan Turing", 
-                    birthDate = "1912-06-23", 
-                    deathDate = "1954-06-07",
-                    occupation = "Mathematician",
-                    fieldOfWork = "Cryptanalysis",
-                    educatedAt = "King's College, Cambridge",
-                    country = "United Kingdom"
-                });
+            var places = new[] { person.PlaceOfBirth, person.PlaceOfDeath, person.Nationality, person.Country }
+                .Where(p => !string.IsNullOrWhiteSpace(p))
+                .ToList();
+            await CsvExporter.WritePlacesMemgraphAsync(places, exportPath, labelDict, "Place");
 
-                Console.WriteLine("Node with relationships created successfully.");
-            });
-        }
+            await CsvExporter.WriteFieldsMemgraphAsync(person, exportPath, labelDict);
+            await CsvExporter.WriteWorksMemgraphAsync(person.Name, person.NotableWorks, exportPath);
+            await CsvExporter.WriteRelationshipsMemgraphAsync(person, exportPath, labelDict);
+
+            Console.WriteLine($"✅ Exported Memgraph CSV to: {exportPath}");
     }
     catch (Exception ex)
     {
-        Console.WriteLine($"Error creating node: {ex.Message}");
-    }
-}
-
-     public async Task UploadRelatedPeopleAsync(JArray relatedPeople)
-     {
-         try
-    {
-        using (var session = _driver.AsyncSession())
-        {
-            await session.WriteTransactionAsync(async tx =>
-            {
-                foreach (var person in relatedPeople)
-                {
-                    var query = @"
-                    MERGE (p:Person {name: $name})
-                    MERGE (turing:Person {name: 'Alan Turing'})  // Ensure Alan Turing node exists
-                    MERGE (p)-[:RELATED_AS {type: $relation}]->(turing)";  // Create relationship
-
-                    await tx.RunAsync(query, new 
-                    { 
-                        name = person["name"].ToString(), 
-                        relation = person["relation"].ToString()
-                    });
-
-                    Console.WriteLine($"Node created: {person["name"]} - Related as {person["relation"]}");
-                }
-            });
-        }
-    }
-    catch (Exception ex)
-    {
-        Console.WriteLine($"Error creating nodes and relationships: {ex.Message}");
+            Console.WriteLine($"❌ Error exporting to Memgraph CSV: {ex.Message}");
     }
      }
 }
