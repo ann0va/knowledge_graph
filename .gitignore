@@ -1,0 +1,53 @@
+# --- Allgemein --------------------------------
+.DS_Store
+Thumbs.db
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnp.*          # Yarn Plug'n'Play
+.idea/         # Rider / IntelliJ
+.vscode/
+.env*
+*.local
+
+# --- Logs & Coverage ---------------------------
+logs/
+*.log
+coverage/
+.nyc_output/
+
+# --- Node & TypeScript -------------------------
+node_modules/
+dist/
+build/
+*.tsbuildinfo
+
+# --- Frontend (React) --------------------------
+frontend/build/
+frontend/.next/      # falls Next.js
+frontend/.cache/
+frontend/public/static/
+
+# --- Backend (Express o. ä.) -------------------
+backend/node_modules/
+backend/logs/
+backend/dist/
+backend/tmp/
+
+# --- OS / Editor Junk --------------------------
+*.swp
+*.swo
+*.bak
+*.orig
+*.tmp
+
+# --- Git --------------------------------------
+.git/
+/.idea/.gitignore
+/.idea/dataSources.xml
+/.idea/deployment.xml
+/.idea/encodings.xml
+/.idea/GraphDatabaseSupport_DataSourcesState.xml
+/.idea/indexLayout.xml
+/.idea/vcs.xml
+/.idea/webServers.xml
