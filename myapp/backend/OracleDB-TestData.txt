@@ -1,0 +1,500 @@
+🔍 Teste Oracle Verbindung...
+Oracle Verbindungspool erstellt
+✅ Oracle Verbindung erfolgreich!
+📊 Verbindungsdetails: [ 'Verbindung erfolgreich', 'FREEPDB1', 'TEAM25S5' ]
+📋 Verfügbare Tabellen: [
+  'RELATIVE_OF',           'SIGNIFICANT_PERSON_FOR',
+  'STUDENT_OF',            'PERSONS',
+  'WORKS',                 'AWARDS',
+  'PLACES',                'WORKPLACES',
+  'FIELDS',                'OCCUPATIONS',
+  'PERSON_WORKPLACES',     'PERSON_TO_WORK',
+  'PERSON_TO_FIELD',       'PERSON_TO_OCCUPATION',
+  'ADVISOR_OF',            'FATHER_OF',
+  'MOTHER_OF',             'INFLUENCED_BY',
+  'PARTNER_OF',            'PERSON_TO_AWARD',
+  'PERSON_TO_BIRTH_IN',    'PERSON_TO_DIED_IN',
+  'PERSON_TO_NATIONAL_OF'
+]
+
+🔍 Teste Memgraph Verbindung...
+✅ Memgraph Verbindung erfolgreich!
+📊 Verbindungsdetails: { status: 'Verbindung erfolgreich', database_type: 'Memgraph' }
+🏷️  Verfügbare Labels: [
+  'award',
+  'field',
+  'occupation',
+  'person',
+  'place',
+  'workplace',
+  'work'
+]
+📊 Nodes pro Label:
+   - work: 27 Nodes
+   - occupation: 22 Nodes
+   - field: 22 Nodes
+   - place: 19 Nodes
+   - workplace: 15 Nodes
+   - award: 15 Nodes
+   - person: 13 Nodes
+
+✅ Alle Verbindungen erfolgreich!
+
+📋 Überprüfe vorhandene Daten...
+
+════════════════════════════════════════
+📊 VORHANDENE DATEN IN DEN DATENBANKEN
+════════════════════════════════════════
+
+🗄️  ORACLE DATENBANK:
+─────────────────────
+📌 Aktuelles Schema: TEAM25S5
+
+📁 Tabelle: ADVISOR_OF
+   Spalten: START_ID (VARCHAR2, NOT NULL), END_ID (VARCHAR2, NOT NULL)
+   Anzahl Beispieldaten: 0
+   Gesamtanzahl Datensätze: 0
+
+📁 Tabelle: AWARDS
+   Spalten: ID (VARCHAR2, NOT NULL), NAME (VARCHAR2)
+   Anzahl Beispieldaten: 5
+   Beispieldaten:
+   1. {
+        "ID": "Q15631401",
+        "NAME": "Fellow of the Royal Society"
+      }
+   2. {
+        "ID": "Q10762848",
+        "NAME": "Officer of the Order of the British Empire"
+      }
+   3. {
+        "ID": "Q1690167",
+        "NAME": "Smith's Prize"
+      }
+   4. {
+        "ID": "Q14420",
+        "NAME": "Order of the British Empire"
+      }
+   5. {
+        "ID": "Q4363133",
+        "NAME": "Computer Pioneer Award"
+      }
+   Gesamtanzahl Datensätze: 15
+
+📁 Tabelle: FATHER_OF
+   Spalten: START_ID (VARCHAR2, NOT NULL), END_ID (VARCHAR2, NOT NULL)
+   Anzahl Beispieldaten: 0
+   Gesamtanzahl Datensätze: 0
+
+📁 Tabelle: FIELDS
+   Spalten: ID (VARCHAR2, NOT NULL), NAME (VARCHAR2)
+   Anzahl Beispieldaten: 5
+   Beispieldaten:
+   1. {
+        "ID": "Q897511",
+        "NAME": "cryptanalysis"
+      }
+   2. {
+        "ID": "Q21198",
+        "NAME": "computer science"
+      }
+   3. {
+        "ID": "Q395",
+        "NAME": "mathematics"
+      }
+   4. {
+        "ID": "Q8078",
+        "NAME": "logic"
+      }
+   5. {
+        "ID": "Q8789",
+        "NAME": "cryptography"
+      }
+   Gesamtanzahl Datensätze: 22
+
+📁 Tabelle: INFLUENCED_BY
+   Spalten: START_ID (VARCHAR2, NOT NULL), END_ID (VARCHAR2, NOT NULL)
+   Anzahl Beispieldaten: 0
+   Gesamtanzahl Datensätze: 0
+
+📁 Tabelle: MOTHER_OF
+   Spalten: START_ID (VARCHAR2, NOT NULL), END_ID (VARCHAR2, NOT NULL)
+   Anzahl Beispieldaten: 0
+   Gesamtanzahl Datensätze: 0
+
+📁 Tabelle: OCCUPATIONS
+   Spalten: ID (VARCHAR2, NOT NULL), NAME (VARCHAR2)
+   Anzahl Beispieldaten: 5
+   Beispieldaten:
+   1. {
+        "ID": "Q82594",
+        "NAME": "computer scientist"
+      }
+   2. {
+        "ID": "Q170790",
+        "NAME": "mathematician"
+      }
+   3. {
+        "ID": "Q1622272",
+        "NAME": "university teacher"
+      }
+   4. {
+        "ID": "Q15442776",
+        "NAME": "cryptographer"
+      }
+   5. {
+        "ID": "Q14565331",
+        "NAME": "logician"
+      }
+   Gesamtanzahl Datensätze: 22
+
+📁 Tabelle: PARTNER_OF
+   Spalten: START_ID (VARCHAR2, NOT NULL), END_ID (VARCHAR2, NOT NULL)
+   Anzahl Beispieldaten: 0
+   Gesamtanzahl Datensätze: 0
+
+📁 Tabelle: PERSONS
+   Spalten: ID (VARCHAR2, NOT NULL), NAME (VARCHAR2), BIRTH_DATE (DATE), DEATH_DATE (DATE), GENDER (VARCHAR2), DESCRIPTION (VARCHAR2)
+   Anzahl Beispieldaten: 5
+   Beispieldaten:
+   1. {
+        "ID": "Q7251",
+        "NAME": "Alan Turing",
+        "BIRTH_DATE": "1912-06-22T23:00:00.000Z",
+        "DEATH_DATE": "1954-06-06T23:00:00.000Z",
+        "GENDER": "Male",
+        "DESCRIPTION": "English computer scientist (1912–1954)"
+      }
+   2. {
+        "ID": "Q21693479",
+        "NAME": "Christopher Morcom",
+        "BIRTH_DATE": "1911-07-12T23:00:00.000Z",
+        "DEATH_DATE": "1930-02-12T23:00:00.000Z",
+        "GENDER": "Male",
+        "DESCRIPTION": "British scientist"
+      }
+   3. {
+        "ID": "Q16493",
+        "NAME": "Beatrice Helen Worsley",
+        "BIRTH_DATE": "1921-10-17T23:00:00.000Z",
+        "DEATH_DATE": "1972-05-07T23:00:00.000Z",
+        "GENDER": "Female",
+        "DESCRIPTION": "first female computer scientist in Canada (1922-1972)"
+      }
+   4. {
+        "ID": "Q92741",
+        "NAME": "Alonzo Church",
+        "BIRTH_DATE": "1903-06-13T23:00:00.000Z",
+        "DEATH_DATE": "1995-08-10T22:00:00.000Z",
+        "GENDER": "Male",
+        "DESCRIPTION": "American mathematician and logician (1903–1995)"
+      }
+   5. {
+        "ID": "Q224372",
+        "NAME": "I. J. Good",
+        "BIRTH_DATE": "1916-12-08T23:00:00.000Z",
+        "DEATH_DATE": "2009-04-04T22:00:00.000Z",
+        "GENDER": "Male",
+        "DESCRIPTION": "British statistician and cryptographer"
+      }
+   Gesamtanzahl Datensätze: 13
+
+📁 Tabelle: PERSON_TO_AWARD
+   Spalten: START_ID (VARCHAR2, NOT NULL), END_ID (VARCHAR2, NOT NULL)
+   Anzahl Beispieldaten: 5
+   Beispieldaten:
+   1. {
+        "START_ID": "Q7251",
+        "END_ID": "Q15631401"
+      }
+   2. {
+        "START_ID": "Q7251",
+        "END_ID": "Q10762848"
+      }
+   3. {
+        "START_ID": "Q7251",
+        "END_ID": "Q1690167"
+      }
+   4. {
+        "START_ID": "Q7251",
+        "END_ID": "Q14420"
+      }
+   5. {
+        "START_ID": "Q224372",
+        "END_ID": "Q1690167"
+      }
+   Gesamtanzahl Datensätze: 16
+
+📁 Tabelle: PERSON_TO_BIRTH_IN
+   Spalten: START_ID (VARCHAR2, NOT NULL), END_ID (VARCHAR2, NOT NULL)
+   Anzahl Beispieldaten: 5
+   Beispieldaten:
+   1. {
+        "START_ID": "Q16493",
+        "END_ID": "Q2917451"
+      }
+   2. {
+        "START_ID": "Q20895935",
+        "END_ID": "Q1661840"
+      }
+   3. {
+        "START_ID": "Q224372",
+        "END_ID": "Q84"
+      }
+   4. {
+        "START_ID": "Q249984",
+        "END_ID": "Q2304852"
+      }
+   5. {
+        "START_ID": "Q298521",
+        "END_ID": "Q384692"
+      }
+   Gesamtanzahl Datensätze: 10
+
+📁 Tabelle: PERSON_TO_DIED_IN
+   Spalten: START_ID (VARCHAR2, NOT NULL), END_ID (VARCHAR2, NOT NULL)
+   Anzahl Beispieldaten: 0
+   Gesamtanzahl Datensätze: 0
+
+📁 Tabelle: PERSON_TO_FIELD
+   Spalten: START_ID (VARCHAR2, NOT NULL), END_ID (VARCHAR2, NOT NULL)
+   Anzahl Beispieldaten: 5
+   Beispieldaten:
+   1. {
+        "START_ID": "Q7251",
+        "END_ID": "Q897511"
+      }
+   2. {
+        "START_ID": "Q7251",
+        "END_ID": "Q21198"
+      }
+   3. {
+        "START_ID": "Q7251",
+        "END_ID": "Q395"
+      }
+   4. {
+        "START_ID": "Q7251",
+        "END_ID": "Q8078"
+      }
+   5. {
+        "START_ID": "Q7251",
+        "END_ID": "Q8789"
+      }
+   Gesamtanzahl Datensätze: 31
+
+📁 Tabelle: PERSON_TO_NATIONAL_OF
+   Spalten: START_ID (VARCHAR2, NOT NULL), END_ID (VARCHAR2, NOT NULL)
+   Anzahl Beispieldaten: 5
+   Beispieldaten:
+   1. {
+        "START_ID": "Q16493",
+        "END_ID": "Q16"
+      }
+   2. {
+        "START_ID": "Q20895935",
+        "END_ID": "Q145"
+      }
+   3. {
+        "START_ID": "Q21693479",
+        "END_ID": "Q145"
+      }
+   4. {
+        "START_ID": "Q224372",
+        "END_ID": "Q145"
+      }
+   5. {
+        "START_ID": "Q249984",
+        "END_ID": "Q145"
+      }
+   Gesamtanzahl Datensätze: 11
+
+📁 Tabelle: PERSON_TO_OCCUPATION
+   Spalten: START_ID (VARCHAR2, NOT NULL), END_ID (VARCHAR2, NOT NULL)
+   Anzahl Beispieldaten: 5
+   Beispieldaten:
+   1. {
+        "START_ID": "Q7251",
+        "END_ID": "Q82594"
+      }
+   2. {
+        "START_ID": "Q7251",
+        "END_ID": "Q170790"
+      }
+   3. {
+        "START_ID": "Q7251",
+        "END_ID": "Q1622272"
+      }
+   4. {
+        "START_ID": "Q7251",
+        "END_ID": "Q15442776"
+      }
+   5. {
+        "START_ID": "Q7251",
+        "END_ID": "Q14565331"
+      }
+   Gesamtanzahl Datensätze: 48
+
+📁 Tabelle: PERSON_TO_WORK
+   Spalten: START_ID (VARCHAR2, NOT NULL), END_ID (VARCHAR2, NOT NULL)
+   Anzahl Beispieldaten: 5
+   Beispieldaten:
+   1. {
+        "START_ID": "Q7251",
+        "END_ID": "Q20895949"
+      }
+   2. {
+        "START_ID": "Q7251",
+        "END_ID": "Q772056"
+      }
+   3. {
+        "START_ID": "Q7251",
+        "END_ID": "Q20895966"
+      }
+   4. {
+        "START_ID": "Q7251",
+        "END_ID": "Q622849"
+      }
+   5. {
+        "START_ID": "Q7251",
+        "END_ID": "Q163310"
+      }
+   Gesamtanzahl Datensätze: 27
+
+📁 Tabelle: PERSON_WORKPLACES
+   Spalten: START_ID (VARCHAR2, NOT NULL), END_ID (VARCHAR2, NOT NULL), START_DATE (DATE), END_DATE (DATE)
+   Anzahl Beispieldaten: 5
+   Beispieldaten:
+   1. {
+        "START_ID": "Q7251",
+        "END_ID": "Q867530",
+        "START_DATE": null,
+        "END_DATE": null
+      }
+   2. {
+        "START_ID": "Q7251",
+        "END_ID": "Q220798",
+        "START_DATE": null,
+        "END_DATE": null
+      }
+   3. {
+        "START_ID": "Q7251",
+        "END_ID": "Q35794",
+        "START_DATE": null,
+        "END_DATE": null
+      }
+   4. {
+        "START_ID": "Q7251",
+        "END_ID": "Q1967606",
+        "START_DATE": null,
+        "END_DATE": null
+      }
+   5. {
+        "START_ID": "Q16493",
+        "END_ID": "Q180865",
+        "START_DATE": null,
+        "END_DATE": null
+      }
+   Gesamtanzahl Datensätze: 16
+
+📁 Tabelle: PLACES
+   Spalten: ID (VARCHAR2, NOT NULL), NAME (VARCHAR2), TYPE (VARCHAR2)
+   Anzahl Beispieldaten: 5
+   Beispieldaten:
+   1. {
+        "ID": "Q122744",
+        "NAME": "Maida Vale",
+        "TYPE": null
+      }
+   2. {
+        "ID": "Q2011497",
+        "NAME": "Wilmslow",
+        "TYPE": null
+      }
+   3. {
+        "ID": "Q145",
+        "NAME": "United Kingdom",
+        "TYPE": null
+      }
+   4. {
+        "ID": "Q2917451",
+        "NAME": "Querétaro",
+        "TYPE": null
+      }
+   5. {
+        "ID": "Q639408",
+        "NAME": "Waterloo",
+        "TYPE": null
+      }
+   Gesamtanzahl Datensätze: 19
+
+📁 Tabelle: RELATIVE_OF
+   Spalten: START_ID (VARCHAR2, NOT NULL), END_ID (VARCHAR2, NOT NULL)
+   Anzahl Beispieldaten: 0
+   Gesamtanzahl Datensätze: 0
+
+📁 Tabelle: SIGNIFICANT_PERSON_FOR
+   Spalten: START_ID (VARCHAR2, NOT NULL), END_ID (VARCHAR2, NOT NULL)
+   Anzahl Beispieldaten: 0
+   Gesamtanzahl Datensätze: 0
+
+📁 Tabelle: STUDENT_OF
+   Spalten: START_ID (VARCHAR2, NOT NULL), END_ID (VARCHAR2, NOT NULL)
+   Anzahl Beispieldaten: 0
+   Gesamtanzahl Datensätze: 0
+
+📁 Tabelle: WORKPLACES
+   Spalten: ID (VARCHAR2, NOT NULL), NAME (VARCHAR2), TYPE (VARCHAR2)
+   Anzahl Beispieldaten: 5
+   Beispieldaten:
+   1. {
+        "ID": "Q867530",
+        "NAME": "Victoria University of Manchester",
+        "TYPE": null
+      }
+   2. {
+        "ID": "Q220798",
+        "NAME": "Government Communications Headquarters",
+        "TYPE": null
+      }
+   3. {
+        "ID": "Q35794",
+        "NAME": "University of Cambridge",
+        "TYPE": null
+      }
+   4. {
+        "ID": "Q1967606",
+        "NAME": "National Physical Laboratory",
+        "TYPE": null
+      }
+   5. {
+        "ID": "Q180865",
+        "NAME": "University of Toronto",
+        "TYPE": null
+      }
+   Gesamtanzahl Datensätze: 15
+
+📁 Tabelle: WORKS
+   Spalten: ID (VARCHAR2, NOT NULL), NAME (VARCHAR2)
+   Anzahl Beispieldaten: 5
+   Beispieldaten:
+   1. {
+        "ID": "Q20895949",
+        "NAME": "On Computable Numbers, with an Application to the Entscheidungsproblem"
+      }
+   2. {
+        "ID": "Q772056",
+        "NAME": "Computing Machinery and Intelligence"
+      }
+   3. {
+        "ID": "Q20895966",
+        "NAME": "Intelligent Machinery"
+      }
+   4. {
+        "ID": "Q622849",
+        "NAME": "halting problem"
+      }
+   5. {
+        "ID": "Q163310",
+        "NAME": "Turing machine"
+      }
+   Gesamtanzahl Datensätze: 26

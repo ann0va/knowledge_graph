@@ -51,3 +51,5 @@ backend/tmp/
 /.idea/indexLayout.xml
 /.idea/vcs.xml
 /.idea/webServers.xml
+/.idea/
+/.idea/dictionaries/
