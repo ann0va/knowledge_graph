@@ -1,90 +1,158 @@
-// index.js - Aktualisierte Version
-const path = require('path');
+// index.js - Hauptserver mit Property Graph Support
 const express = require('express');
 const cors = require('cors');
-const { initializeOraclePool, closeOraclePool, closeMemgraphDriver } = require('./src/config/database');
-const DataController = require('./src/controllers/DataController');
-const errorHandler = require('./src/middleware/errorHandler');
+require('dotenv').config();
+
+const { initializeOraclePool, getOracleConnection } = require('./src/config/database');
+const MemgraphRepository = require('./src/repositories/MemgraphRepository');
+const RepositoryFactory = require('./src/repositories');
 
 const app = express();
-const dataController = new DataController();
-
-// Middleware
-app.use(express.json());
-app.use(cors()); // CORS für Frontend-Zugriff
-
-// Static files für React Frontend
-const buildPath = path.join(__dirname, '../frontend/build');
-app.use(express.static(buildPath));
-
-// API Routes
-const apiRouter = express.Router();
-
-// CRUD Endpunkte
-apiRouter.post('/create', (req, res, next) => dataController.create(req, res, next));
-apiRouter.post('/read', (req, res, next) => dataController.read(req, res, next));
-apiRouter.put('/update/:id', (req, res, next) => dataController.update(req, res, next));
-apiRouter.delete('/delete/:id', (req, res, next) => dataController.delete(req, res, next));
-
-// Universelle Query-Schnittstelle
-apiRouter.post('/query', (req, res, next) => dataController.query(req, res, next));
-
-// Direkte Query-Ausführung (für fortgeschrittene Nutzer)
-apiRouter.post('/execute', (req, res, next) => dataController.executeQuery(req, res, next));
-
-// Health Check
-apiRouter.get('/health', (req, res) => {
-    res.json({
-        status: 'ok',
-        databases: ['oracle', 'memgraph'],
-        timestamp: new Date().toISOString()
-    });
-});
-
-// Mount API routes
-app.use('/api', apiRouter);
-
-// Catch-all für React Router
-// app.get('/*', (req, res) => {
-//     res.sendFile(path.join(buildPath, 'index.html'));
-// });
-
-app.get('/*splat', (req, res) => {
-    res.sendFile(path.join(buildPath, 'index.html'));
-});
-
-// Error Handler (muss als letztes kommen)
-app.use(errorHandler);
-
-// Server starten
 const PORT = process.env.PORT || 10510;
 
-async function startServer() {
+// Middleware
+app.use(cors());
+app.use(express.json());
+
+// Globale Variablen für Repositories
+let repositoryFactory;
+let memgraphDb;
+
+// Server initialisieren
+async function initializeServer() {
     try {
+        console.log('🚀 Initialisiere Server...\n');
+
         // Oracle Pool initialisieren
+        console.log('📦 Initialisiere Oracle Connection Pool...');
         await initializeOraclePool();
+        console.log('✅ Oracle Pool bereit\n');
 
-        const server = app.listen(PORT, () => {
-            console.log(`Backend läuft auf Port ${PORT}`);
-            console.log('Verfügbare Datenbanken: Oracle, Memgraph');
-        });
+        // Memgraph verbinden
+        console.log('🔗 Verbinde zu Memgraph...');
+        memgraphDb = new MemgraphRepository();
+        await memgraphDb.connect();
+        console.log('✅ Memgraph verbunden\n');
 
-        // Graceful Shutdown
-        process.on('SIGTERM', async () => {
-            console.log('SIGTERM empfangen. Server wird heruntergefahren...');
+        // Repository Factory erstellen
+        console.log('🏭 Erstelle Repository Factory...');
+        repositoryFactory = new RepositoryFactory(
+            { getConnection: getOracleConnection }, // Oracle adapter
+            memgraphDb
+        );
+        console.log('✅ Repository Factory bereit\n');
 
-            server.close(async () => {
-                await closeOraclePool();
-                await closeMemgraphDriver();
-                console.log('Server beendet');
-                process.exit(0);
-            });
+        // Routes einbinden
+        setupRoutes();
+
+        // Server starten
+        app.listen(PORT, () => {
+            console.log(`✅ Server läuft auf http://localhost:${PORT}`);
+            console.log('\n📍 Verfügbare Endpoints:');
+            console.log('   - GET  /api/health');
+            console.log('   - GET  /api/person');
+            console.log('   - GET  /api/person/:id');
+            console.log('   - GET  /api/person/:id/relationships');
+            console.log('   - POST /api/person');
+            console.log('   - GET  /api/place');
+            console.log('   - GET  /api/work');
+            console.log('   - GET  /api/award');
+            console.log('   - GET  /api/workplace');
+            console.log('   - GET  /api/field');
+            console.log('   - GET  /api/occupation');
+            console.log('   - POST /api/query');
         });
 
     } catch (error) {
-        console.error('Fehler beim Starten des Servers:', error);
+        console.error('❌ Fehler beim Server-Start:', error);
         process.exit(1);
     }
 }
 
-startServer();
+// Routes einrichten
+function setupRoutes() {
+    // Health Check
+    app.get('/api/health', async (req, res) => {
+        try {
+            const health = {
+                status: 'ok',
+                timestamp: new Date().toISOString(),
+                databases: {
+                    oracle: false,
+                    memgraph: false
+                }
+            };
+
+            // Oracle Check
+            try {
+                const oracleRepo = repositoryFactory.getRepository('person', 'oracle');
+                await oracleRepo.findAll(1);
+                health.databases.oracle = true;
+            } catch (e) {
+                console.error('Oracle health check failed:', e.message);
+            }
+
+            // Memgraph Check
+            try {
+                const memgraphRepo = repositoryFactory.getRepository('person', 'memgraph');
+                await memgraphRepo.findAll(1);
+                health.databases.memgraph = true;
+            } catch (e) {
+                console.error('Memgraph health check failed:', e.message);
+            }
+
+            res.json(health);
+        } catch (error) {
+            res.status(500).json({
+                status: 'error',
+                error: error.message
+            });
+        }
+    });
+
+    // Entity Routes
+    app.use('/api/person', require('./src/routes/person')(repositoryFactory));
+    app.use('/api/place', require('./src/routes/place')(repositoryFactory));
+    app.use('/api/work', require('./src/routes/work')(repositoryFactory));
+    app.use('/api/award', require('./src/routes/award')(repositoryFactory));
+    app.use('/api/workplace', require('./src/routes/workplace')(repositoryFactory));
+    app.use('/api/field', require('./src/routes/field')(repositoryFactory));
+    app.use('/api/occupation', require('./src/routes/occupation')(repositoryFactory));
+
+    // Query Route (für direkte Cypher/SQL Queries)
+    app.use('/api/query', require('./src/routes/query')(repositoryFactory));
+
+    // 404 Handler
+    app.use((req, res) => {
+        res.status(404).json({
+            success: false,
+            error: 'Endpoint nicht gefunden'
+        });
+    });
+
+    // Error Handler
+    app.use((err, req, res, next) => {
+        console.error('Server Error:', err);
+        res.status(500).json({
+            success: false,
+            error: err.message || 'Interner Serverfehler'
+        });
+    });
+}
+
+// Graceful Shutdown
+process.on('SIGINT', async () => {
+    console.log('\n⏹️  Fahre Server herunter...');
+
+    if (memgraphDb) {
+        await memgraphDb.close();
+        console.log('✅ Memgraph Verbindung geschlossen');
+    }
+
+    // Oracle Pool wird automatisch geschlossen
+
+    process.exit(0);
+});
+
+// Server starten
+initializeServer();

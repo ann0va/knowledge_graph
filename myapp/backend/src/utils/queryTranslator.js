@@ -1,323 +1,170 @@
-﻿// src/utils/queryTranslator.js
+﻿// src/utils/QueryTranslator.js - Übersetzt Cypher nach SQL/PGQ für Oracle Property Graph
 class QueryTranslator {
-    /**
-     * Übersetzt ein generisches Query-Objekt in SQL oder Cypher
-     */
-    static translateToSQL(entity, operation, params) {
-        switch (operation) {
-            case 'find':
-                return this.buildSQLSelect(entity, params);
-            case 'aggregate':
-                return this.buildSQLAggregate(entity, params);
-            case 'join':
-                return this.buildSQLJoin(params);
-            default:
-                throw new Error(`Unbekannte SQL Operation: ${operation}`);
-        }
+    constructor() {
+        this.labelToType = {
+            'Person': 'PERSON', 'Place': 'PLACE', 'Work': 'WORK',
+            'Award': 'AWARD', 'Workplace': 'WORKPLACE',
+            'Field': 'FIELD', 'Occupation': 'OCCUPATION'
+        };
     }
 
-    static translateToCypher(entity, operation, params) {
-        switch (operation) {
-            case 'find':
-                return this.buildCypherMatch(entity, params);
-            case 'aggregate':
-                return this.buildCypherAggregate(entity, params);
-            case 'relation':
-                return this.buildCypherRelation(params);
-            default:
-                throw new Error(`Unbekannte Cypher Operation: ${operation}`);
-        }
+    // Hauptmethode: Cypher zu Oracle SQL/PGQ
+    translateCypherToOracle(cypherQuery) {
+        const query = cypherQuery.trim();
+        const upper = query.toUpperCase();
+
+        if (upper.startsWith('MATCH')) return this.translateMatchQuery(query);
+        if (upper.startsWith('CREATE')) return this.translateCreateQuery(query);
+        if (upper.includes('DELETE')) return this.translateDeleteQuery(query);
+
+        throw new Error('Nicht unterstützter Query-Typ');
     }
 
-    // SQL Builders
-    static buildSQLSelect(table, params) {
-        const { fields = '*', where, orderBy, groupBy, limit } = params;
+    // MATCH Query übersetzen
+    translateMatchQuery(cypher) {
+        // Einfaches Pattern: MATCH (n:Label {prop: value}) RETURN n
+        const simpleMatch = /MATCH\s+\((\w+)(?::(\w+))?\s*(?:{([^}]+)})?\)\s*RETURN\s+(.+)/i;
+        const match = cypher.match(simpleMatch);
 
-        let query = `SELECT ${Array.isArray(fields) ? fields.join(', ') : fields} FROM ${table}`;
+        if (match) {
+            const [_, varName, label, propsStr, returnClause] = match;
+            const vertexType = label ? (this.labelToType[label] || label.toUpperCase()) : null;
 
-        if (where) {
-            const conditions = this.buildSQLConditions(where);
-            query += ` WHERE ${conditions}`;
-        }
+            let sql = `
+        SELECT v.vertex_id, v.vertex_type, v.properties
+        FROM GRAPH_TABLE (knowledge_graph
+          MATCH (v)`;
 
-        if (groupBy) {
-            query += ` GROUP BY ${groupBy}`;
-        }
+            const conditions = [];
+            if (vertexType) {
+                conditions.push(`v.vertex_type = '${vertexType}'`);
+            }
 
-        if (orderBy) {
-            query += ` ORDER BY ${orderBy}`;
-        }
-
-        if (limit) {
-            query += ` FETCH FIRST ${limit} ROWS ONLY`;
-        }
-
-        return query;
-    }
-
-    static buildSQLAggregate(table, params) {
-        const { operation, field, where, groupBy } = params;
-
-        let query = `SELECT `;
-
-        if (groupBy) {
-            query += `${groupBy}, `;
-        }
-
-        query += `${operation}(${field}) as result FROM ${table}`;
-
-        if (where) {
-            const conditions = this.buildSQLConditions(where);
-            query += ` WHERE ${conditions}`;
-        }
-
-        if (groupBy) {
-            query += ` GROUP BY ${groupBy}`;
-        }
-
-        return query;
-    }
-
-    static buildSQLJoin(params) {
-        const { tables, joinOn, fields = '*', where } = params;
-
-        let query = `SELECT ${fields} FROM ${tables[0]}`;
-
-        for (let i = 1; i < tables.length; i++) {
-            const joinCondition = joinOn[i - 1];
-            query += ` JOIN ${tables[i]} ON ${joinCondition}`;
-        }
-
-        if (where) {
-            const conditions = this.buildSQLConditions(where);
-            query += ` WHERE ${conditions}`;
-        }
-
-        return query;
-    }
-
-    static buildSQLConditions(where) {
-        return Object.entries(where)
-            .map(([key, value]) => {
-                if (typeof value === 'object') {
-                    return this.buildSQLComplexCondition(key, value);
+            if (propsStr) {
+                const props = this.parseProperties(propsStr);
+                for (const [key, value] of Object.entries(props)) {
+                    conditions.push(`JSON_VALUE(v.properties, '$.${key}') = '${value}'`);
                 }
-                return `${key} = '${value}'`;
-            })
-            .join(' AND ');
-    }
+            }
 
-    static buildSQLComplexCondition(key, condition) {
-        const { operator, value } = condition;
+            if (conditions.length > 0) {
+                sql += `\n          WHERE ${conditions.join(' AND ')}`;
+            }
 
-        switch (operator) {
-            case 'gt': return `${key} > ${value}`;
-            case 'gte': return `${key} >= ${value}`;
-            case 'lt': return `${key} < ${value}`;
-            case 'lte': return `${key} <= ${value}`;
-            case 'ne': return `${key} != '${value}'`;
-            case 'like': return `${key} LIKE '${value}'`;
-            case 'in': return `${key} IN (${value.map(v => `'${v}'`).join(', ')})`;
-            default: return `${key} = '${value}'`;
-        }
-    }
+            sql += `\n          COLUMNS (v.vertex_id, v.vertex_type, v.properties)\n        )`;
 
-    // Cypher Builders
-    static buildCypherMatch(label, params) {
-        const { fields, where, orderBy, limit, relationships } = params;
-
-        let query = `MATCH (n:${label})`;
-
-        if (relationships) {
-            query = this.addCypherRelationships(query, relationships);
-        }
-
-        if (where) {
-            const conditions = this.buildCypherConditions(where);
-            query += ` WHERE ${conditions}`;
-        }
-
-        query += ' RETURN ';
-
-        if (fields && fields !== '*') {
-            const fieldList = Array.isArray(fields)
-                ? fields.map(f => `n.${f}`).join(', ')
-                : `n.${fields}`;
-            query += fieldList;
-        } else {
-            query += 'n';
-        }
-
-        if (orderBy) {
-            query += ` ORDER BY n.${orderBy}`;
-        }
-
-        if (limit) {
-            query += ` LIMIT ${limit}`;
-        }
-
-        return query;
-    }
-
-    static buildCypherAggregate(label, params) {
-        const { operation, field, where, groupBy } = params;
-
-        let query = `MATCH (n:${label})`;
-
-        if (where) {
-            const conditions = this.buildCypherConditions(where);
-            query += ` WHERE ${conditions}`;
-        }
-
-        query += ' RETURN ';
-
-        if (groupBy) {
-            query += `n.${groupBy}, `;
-        }
-
-        query += `${operation}(n.${field}) as result`;
-
-        return query;
-    }
-
-    static buildCypherRelation(params) {
-        const { from, to, relationship, properties } = params;
-
-        let query = `MATCH (a:${from.label}), (b:${to.label})`;
-
-        if (from.where) {
-            const fromConditions = this.buildCypherConditions(from.where, 'a');
-            query += ` WHERE ${fromConditions}`;
-        }
-
-        if (to.where) {
-            const toConditions = this.buildCypherConditions(to.where, 'b');
-            query += from.where ? ` AND ${toConditions}` : ` WHERE ${toConditions}`;
-        }
-
-        query += ` CREATE (a)-[r:${relationship}`;
-
-        if (properties) {
-            const props = Object.entries(properties)
-                .map(([k, v]) => `${k}: '${v}'`)
-                .join(', ');
-            query += ` {${props}}`;
-        }
-
-        query += ']->(b) RETURN a, r, b';
-
-        return query;
-    }
-
-    static buildCypherConditions(where, alias = 'n') {
-        return Object.entries(where)
-            .map(([key, value]) => {
-                if (typeof value === 'object') {
-                    return this.buildCypherComplexCondition(alias, key, value);
+            // Limit handling
+            if (returnClause.includes('LIMIT')) {
+                const limitMatch = returnClause.match(/LIMIT\s+(\d+)/i);
+                if (limitMatch) {
+                    sql += `\n        FETCH FIRST ${limitMatch[1]} ROWS ONLY`;
                 }
-                return `${alias}.${key} = '${value}'`;
-            })
-            .join(' AND ');
-    }
+            }
 
-    static buildCypherComplexCondition(alias, key, condition) {
-        const { operator, value } = condition;
-
-        switch (operator) {
-            case 'gt': return `${alias}.${key} > ${value}`;
-            case 'gte': return `${alias}.${key} >= ${value}`;
-            case 'lt': return `${alias}.${key} < ${value}`;
-            case 'lte': return `${alias}.${key} <= ${value}`;
-            case 'ne': return `${alias}.${key} <> '${value}'`;
-            case 'contains': return `${alias}.${key} CONTAINS '${value}'`;
-            case 'startsWith': return `${alias}.${key} STARTS WITH '${value}'`;
-            case 'endsWith': return `${alias}.${key} ENDS WITH '${value}'`;
-            case 'in': return `${alias}.${key} IN [${value.map(v => `'${v}'`).join(', ')}]`;
-            default: return `${alias}.${key} = '${value}'`;
-        }
-    }
-
-    static addCypherRelationships(query, relationships) {
-        relationships.forEach(rel => {
-            query += `-[${rel.variable || ''}:${rel.type}${rel.direction || ''}]-`;
-            query += `(${rel.node}:${rel.label})`;
-        });
-        return query;
-    }
-
-    /**
-     * Unified Query Interface - übersetzt abstrakte Queries in DB-spezifische
-     */
-    static translateUnifiedQuery(dbType, query) {
-        const { entity, operation, params } = query;
-
-        if (dbType === 'oracle') {
-            return this.translateToSQL(entity, operation, params);
-        } else if (dbType === 'memgraph') {
-            return this.translateToCypher(entity, operation, params);
+            return sql;
         }
 
-        throw new Error(`Unbekannter Datenbanktyp: ${dbType}`);
-    }
-}
+        // Relationship Pattern: MATCH (a)-[r:TYPE]->(b) RETURN a,b
+        const relMatch = /MATCH\s+\((\w+)(?::(\w+))?\)\s*-\[(\w+)?:?(\w+)?\]->\s*\((\w+)(?::(\w+))?\)\s*RETURN\s+(.+)/i;
+        const relResult = cypher.match(relMatch);
 
-// Erweiterte Service-Methode für unified queries
-// Fügen Sie diese Methode zur DataService Klasse hinzu:
-/*
-async executeUnifiedQuery(dbType, unifiedQuery) {
-  const translatedQuery = QueryTranslator.translateUnifiedQuery(dbType, unifiedQuery);
-  return await this.executeQuery(dbType, translatedQuery);
-}
-*/
+        if (relResult) {
+            const [_, sourceVar, sourceLabel, relVar, relType, targetVar, targetLabel, returnVars] = relResult;
 
-// Beispiel-Verwendung:
-const examples = {
-    // Einfache Suche
-    findUsers: {
-        entity: 'User',
-        operation: 'find',
-        params: {
-            fields: ['name', 'email'],
-            where: {
-                age: { operator: 'gt', value: 25 }
-            },
-            orderBy: 'name',
-            limit: 10
+            return `
+        SELECT s.vertex_id as source_id, s.properties as source_props,
+               t.vertex_id as target_id, t.properties as target_props,
+               e.edge_label as relationship_type
+        FROM GRAPH_TABLE (knowledge_graph
+          MATCH (s)-[e]->(t)
+          WHERE ${relType ? `e.edge_label = '${relType}'` : '1=1'}
+            ${sourceLabel ? `AND s.vertex_type = '${this.labelToType[sourceLabel] || sourceLabel.toUpperCase()}'` : ''}
+            ${targetLabel ? `AND t.vertex_type = '${this.labelToType[targetLabel] || targetLabel.toUpperCase()}'` : ''}
+          COLUMNS (s.vertex_id, s.properties, 
+                  t.vertex_id, t.properties,
+                  e.edge_label)
+        )`;
         }
-    },
 
-    // Aggregation
-    averageAge: {
-        entity: 'User',
-        operation: 'aggregate',
-        params: {
-            operation: 'AVG',
-            field: 'age',
-            where: {
-                city: 'Berlin'
+        throw new Error('Nicht unterstütztes MATCH Pattern');
+    }
+
+    // CREATE Query übersetzen
+    translateCreateQuery(cypher) {
+        // Node erstellen: CREATE (n:Person {name: "Test", id: "123"})
+        const nodeMatch = /CREATE\s+\((?:\w+)?:(\w+)\s*{([^}]+)}\)/i;
+        const match = cypher.match(nodeMatch);
+
+        if (match) {
+            const [_, label, propsStr] = match;
+            const vertexType = this.labelToType[label] || label.toUpperCase();
+            const props = this.parseProperties(propsStr);
+
+            if (!props.id) {
+                props.id = `${label.toLowerCase()}_${Date.now()}`;
+            }
+
+            return `
+        INSERT INTO kg_vertices (vertex_id, vertex_type, properties)
+        VALUES ('${props.id}', '${vertexType}', '${JSON.stringify(props)}')`;
+        }
+
+        // Relationship erstellen
+        const relMatch = /CREATE\s+\((\w+)\)-\[:(\w+)\]->\((\w+)\)/i;
+        const relResult = cypher.match(relMatch);
+
+        if (relResult) {
+            const [_, sourceVar, relType, targetVar] = relResult;
+
+            return `
+        INSERT INTO kg_edges (source_vertex_id, dest_vertex_id, edge_label, properties)
+        SELECT s.vertex_id, t.vertex_id, '${relType}', '{}'
+        FROM kg_vertices s, kg_vertices t
+        WHERE s.vertex_id = :source_id AND t.vertex_id = :target_id`;
+        }
+
+        throw new Error('Nicht unterstütztes CREATE Pattern');
+    }
+
+    // DELETE Query übersetzen
+    translateDeleteQuery(cypher) {
+        // MATCH (n:Person {id: "123"}) DELETE n
+        const match = /MATCH\s+\((\w+):(\w+)\s*{([^}]+)}\)\s*DELETE\s+\1/i;
+        const result = cypher.match(match);
+
+        if (result) {
+            const [_, varName, label, propsStr] = result;
+            const props = this.parseProperties(propsStr);
+
+            if (props.id) {
+                return `DELETE FROM kg_vertices WHERE vertex_id = '${props.id}'`;
             }
         }
-    },
 
-    // Beziehungen (nur Memgraph)
-    createRelation: {
-        operation: 'relation',
-        params: {
-            from: {
-                label: 'User',
-                where: { id: 1 }
-            },
-            to: {
-                label: 'Product',
-                where: { id: 100 }
-            },
-            relationship: 'PURCHASED',
-            properties: {
-                date: '2025-01-15',
-                quantity: 2
-            }
-        }
+        throw new Error('Nicht unterstütztes DELETE Pattern');
     }
-};
+
+    // Hilfsmethode: Properties parsen
+    parseProperties(propsStr) {
+        const props = {};
+        const propRegex = /(\w+):\s*["']?([^,"']+)["']?/g;
+        let match;
+
+        while ((match = propRegex.exec(propsStr)) !== null) {
+            props[match[1]] = match[2];
+        }
+
+        return props;
+    }
+
+    // Memgraph Cypher zu Cypher (nur Syntax-Anpassungen)
+    translateCypherToMemgraph(cypherQuery) {
+        // Memgraph versteht Standard-Cypher, nur kleine Anpassungen nötig
+        return cypherQuery
+            .replace(/\bLIMIT\b/gi, 'LIMIT')
+            .replace(/\bRETURN\b/gi, 'RETURN')
+            .trim();
+    }
+}
 
 module.exports = QueryTranslator;

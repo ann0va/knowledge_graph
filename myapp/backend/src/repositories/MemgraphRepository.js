@@ -8,6 +8,15 @@ class MemgraphRepository extends BaseRepository {
         this.nodeLabel = nodeLabel;
     }
 
+    async connect() {
+        // Beispiel: auf Connectivity testen
+        const session = getMemgraphSession();
+        try {
+            await session.run('RETURN 1');
+        } finally {
+            await session.close();
+        }
+    }
     async create(data) {
         const session = getMemgraphSession();
         try {

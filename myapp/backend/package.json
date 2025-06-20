@@ -1,7 +1,7 @@
 {
-  "name": "dual-db-backend",
+  "name": "unified-backend",
   "version": "1.0.0",
-  "description": "Backend mit Oracle und Memgraph Unterstützung",
+  "description": "Unified Backend für Memgraph und Oracle",
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
@@ -10,16 +10,27 @@
     "test:api": "node test-api.js",
     "test:all": "npm run test:connections && npm run start & sleep 3 && npm run test:api",
     "data:export": "node data-explorer.js",
-    "data:show": "node test-connections.js"
+    "data:show": "node test-connections.js",
+    "oracle:property-graph-import": "node oracle-property-graph-import.js"
   },
   "dependencies": {
-    "express": "^5.1.0",
-    "oracledb": "^6.3.0",
-    "neo4j-driver": "^5.15.0",
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
     "dotenv": "^16.3.1",
-    "cors": "^2.8.5"
+    "oracledb": "^6.5.0",
+    "neo4j-driver": "^5.17.0"
   },
   "devDependencies": {
     "nodemon": "^3.0.2"
-  }
+  },
+  "keywords": [
+    "api",
+    "backend",
+    "memgraph",
+    "oracle",
+    "graph-database",
+    "property-graph"
+  ],
+  "author": "",
+  "license": "ISC"
 }
