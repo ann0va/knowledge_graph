@@ -47,7 +47,7 @@ async function initializeServer() {
 
         // Server starten
         app.listen(PORT, () => {
-            console.log(`✅ Server läuft auf http://localhost:${PORT}`);
+            console.log(`✅ Server läuft auf http://c017-master.infcs.de:${PORT}`);
             console.log('\n📍 Verfügbare Endpoints:');
             console.log('   - GET  /api/health');
             console.log('   - GET  /api/person');

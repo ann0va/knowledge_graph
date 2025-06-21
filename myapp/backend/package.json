@@ -11,14 +11,23 @@
     "test:all": "npm run test:connections && npm run start & sleep 3 && npm run test:api",
     "data:export": "node data-explorer.js",
     "data:show": "node test-connections.js",
-    "oracle:property-graph-import": "node oracle-property-graph-import.js"
+    "oracle:diagnose": "node oracle-diagnosis.js",
+    "oracle:property-graph-import": "node oracle-property-graph-import-fixed.js",
+    "oracle:debug": "node oracle-graph-debug.js",
+    "oracle:detect": "node oracle-table-detector.js",
+    "oracle:test-pgq": "node test-sql-pgq.js",
+    "pgx:status": "node pgx-status.js",
+    "pgx:convert": "node memgraph-to-pgx-json.js",
+    "pgx:create": "node pgx-create-graph.js",
+    "pgx:test": "node test-pgx.js"
   },
   "dependencies": {
-    "express": "^4.18.2",
+    "axios": "^1.10.0",
     "cors": "^2.8.5",
-    "dotenv": "^16.3.1",
-    "oracledb": "^6.5.0",
-    "neo4j-driver": "^5.17.0"
+    "dotenv": "^16.5.0",
+    "express": "^5.1.0",
+    "neo4j-driver": "^5.17.0",
+    "oracledb": "^6.8.0"
   },
   "devDependencies": {
     "nodemon": "^3.0.2"

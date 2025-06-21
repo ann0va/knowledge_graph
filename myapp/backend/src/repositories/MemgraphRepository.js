@@ -1,6 +1,6 @@
 ﻿// src/repositories/MemgraphRepository.js
 const BaseRepository = require('./BaseRepository');
-const { getMemgraphSession } = require('../config/database');
+const {getMemgraphSession} = require('../config/database');
 
 class MemgraphRepository extends BaseRepository {
     constructor(nodeLabel) {
@@ -17,6 +17,7 @@ class MemgraphRepository extends BaseRepository {
             await session.close();
         }
     }
+
     async create(data) {
         const session = getMemgraphSession();
         try {
@@ -102,9 +103,9 @@ class MemgraphRepository extends BaseRepository {
         RETURN n
       `;
 
-            const result = await session.run(query, { id, ...data });
+            const result = await session.run(query, {id, ...data});
 
-            return { rowsAffected: result.records.length };
+            return {rowsAffected: result.records.length};
         } catch (error) {
             throw new Error(`Memgraph Update Fehler: ${error.message}`);
         } finally {
@@ -122,10 +123,10 @@ class MemgraphRepository extends BaseRepository {
         RETURN COUNT(n) as deleted
       `;
 
-            const result = await session.run(query, { id });
+            const result = await session.run(query, {id});
             const deletedCount = result.records[0].get('deleted').toNumber();
 
-            return { rowsAffected: deletedCount };
+            return {rowsAffected: deletedCount};
         } catch (error) {
             throw new Error(`Memgraph Delete Fehler: ${error.message}`);
         } finally {
@@ -144,6 +145,17 @@ class MemgraphRepository extends BaseRepository {
             await session.close();
         }
     }
+
+    async close() {
+        // Connection zur Memgraph Datenbank schließen
+        const session = getMemgraphSession();
+        try {
+            await session.close();
+        } catch (error) {
+            throw new Error(`Memgraph Closing Error: ${error.message}`);
+        }
+    }
+
 }
 
 module.exports = MemgraphRepository;
