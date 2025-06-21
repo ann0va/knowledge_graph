@@ -209,7 +209,6 @@
 /Präsentation1_Oracle.pptx
 /App/obj/Debug/net9.0/compressed/q7wg78fiw4-ltid2c489k.gz
 /App/obj/Debug/net9.0/compressed/r4riabqqjz-0j3bgjxly4.gz
-/App/Models/RelatedPerson.cs
 /App/Exported/Oracle/oracle/relationships.csv
 /App/Exported/Memgraph/edges/relative_of.csv
 /App/obj/rider.project.model.nuget.info
@@ -248,13 +247,6 @@
 /App/obj/Debug/net9.0/compressed/v20al4f3ko-nvvlpmu67g.gz
 /App/obj/Debug/net9.0/compressed/vgec2jx6vw-iovd86k7lj.gz
 /App/obj/Debug/net9.0/compressed/wd0h1qme24-83jwlth58m.gz
-/App/Database/WikidataEntityMapper.cs
-/App/Database/WikidataLabelService.cs
-/App/Database/WikidataRelationshipFetcher.cs
-/App/Helpers/WikidataTypeService.cs
-/App/Exported/Memgraph/nodes/workplaces.csv
-/App/Exported/Oracle/oracle/workplaces.csv
-/App/Exported/Memgraph/nodes/works.csv
 /App/obj/Debug/net9.0/compressed/wv24goepod-4094rpi4f9.gz
 /App/obj/Debug/net9.0/compressed/xaeueofg3g-ee0r1s7dh0.gz
 /App/obj/Debug/net9.0/compressed/xl2myhteli-gye83jo8yx.gz
