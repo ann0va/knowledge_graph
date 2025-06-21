@@ -2,28 +2,39 @@ using System;
 using System.IO;
 using System.Threading.Tasks;
 using App.Models;
-using App.Export;
+using Microsoft.Extensions.Configuration;
 
 namespace App.Data
 {
     public class OracleUploader
     {
+        private readonly MemgraphToOracleConverter _converter;
+
+        public OracleUploader(IConfiguration configuration)
+        {
+            _converter = new MemgraphToOracleConverter(configuration);
+        }
+
         public async Task ExportAsync(Person person)
         {
             try
             {
-                string exportPath = Path.Combine("Exported", "Oracle");
-                Directory.CreateDirectory(exportPath);
+                // Create tables if they don't exist
+                await _converter.CreateNodeTables();
+                await _converter.CreateEdgeTables();
 
-                await CsvExporter.WritePersonOracleAsync(person, exportPath);
-                await CsvExporter.WriteFieldsOracleAsync(person.Name, person.Fields, exportPath);
-                await CsvExporter.WriteRelationshipsOracleAsync(person.RelatedPeople, exportPath);
+                // Import person data
+                await _converter.ImportPersonData(person);
 
-                Console.WriteLine($"✅ Exported Oracle CSV to: {exportPath}");
+                // Create property graph
+                await _converter.CreatePropertyGraph();
+
+                Console.WriteLine($"✅ Exported person data to Oracle successfully");
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"❌ Error exporting to Oracle CSV: {ex.Message}");
+                Console.WriteLine($"❌ Error exporting to Oracle: {ex.Message}");
+                throw;
             }
         }
     }
