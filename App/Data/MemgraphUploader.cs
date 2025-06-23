@@ -29,7 +29,7 @@ public class MemgraphUploader
             await CsvExporter.WritePlacesMemgraphAsync(places, exportPath, labelDict, "Place");
 
             await CsvExporter.WriteFieldsMemgraphAsync(person, exportPath, labelDict);
-            await CsvExporter.WriteWorksMemgraphAsync(person.Name, person.NotableWorks, exportPath);
+            await CsvExporter.WriteWorksMemgraphAsync(person.Id, person.NotableWorks, exportPath);
             await CsvExporter.WriteRelationshipsMemgraphAsync(person, exportPath, labelDict);
 
             Console.WriteLine($"✅ Exported Memgraph CSV to: {exportPath}");

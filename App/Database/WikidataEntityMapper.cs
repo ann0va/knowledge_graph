@@ -29,7 +29,7 @@ namespace App.Database
                 Fields = GetFields(entity),
                 Occupations = GetOccupations(entity),
                 Awards = GetAwards(entity),
-                NotableWorks = labelService == null ? new List<Item>() : await GetNotableWorks(entity, labelService),
+                NotableWorks = labelService == null ? new List<NotableWork>() : await GetNotableWorks(entity, labelService),
                 Workplaces = GetWorkplaces(entity)
             };
             return person;
@@ -207,16 +207,16 @@ namespace App.Database
                     var id = datavalue.GetProperty("id").GetString();
                     if (id != null)
                     {
-                        occupations.Add(new Occupation { Name = id });
+                        occupations.Add(new Occupation { OccupationId = id, OccupationName = id });
                     }
                 }
             }
             catch { }
             return occupations;
         }
-        public static List<string> GetAwards(JsonElement entity)
+        public static List<Award> GetAwards(JsonElement entity)
         {
-            var awards = new List<string>();
+            var awards = new List<Award>();
             try
             {
                 var claims = entity.GetProperty("claims").GetProperty("P166");
@@ -227,16 +227,16 @@ namespace App.Database
                     var id = datavalue.GetProperty("id").GetString();
                     if (id != null)
                     {
-                        awards.Add(id);
+                        awards.Add(new Award { AwardId = id, AwardName = id });
                     }
                 }
             }
             catch { }
             return awards;
         }
-        public static async Task<List<Item>> GetNotableWorks(JsonElement entity, WikidataLabelService? labelService)
+        public static async Task<List<NotableWork>> GetNotableWorks(JsonElement entity, WikidataLabelService? labelService)
         {
-            var works = new List<Item>();
+            var works = new List<NotableWork>();
             var ids = new List<string>();
             try
             {
@@ -256,13 +256,13 @@ namespace App.Database
             var labelDict = labelService != null ? await labelService.GetLabelsForIdsAsync(ids) : new Dictionary<string, string>();
             foreach (var id in ids)
             {
-                works.Add(new Item { Id = id, Label = labelDict.GetValueOrDefault(id, id) });
+                works.Add(new NotableWork { WorkId = id, WorkName = labelDict.GetValueOrDefault(id, id) });
             }
             return works;
         }
-        public static List<WorkplaceRelation> GetWorkplaces(JsonElement entity)
+        public static List<Workplace> GetWorkplaces(JsonElement entity)
         {
-            var workplaces = new List<WorkplaceRelation>();
+            var workplaces = new List<Workplace>();
             try
             {
                 if (!entity.TryGetProperty("claims", out var claimsObj))
@@ -285,7 +285,7 @@ namespace App.Database
                         if (string.IsNullOrWhiteSpace(workplaceId))
                             continue;
 
-                        var workplace = new WorkplaceRelation { WorkplaceId = workplaceId };
+                        var workplace = new Workplace { WorkplaceId = workplaceId, WorkplaceName = workplaceId };
 
                         // Try to get start date (P580)
                         if (claim.TryGetProperty("qualifiers", out var qualifiers) && 

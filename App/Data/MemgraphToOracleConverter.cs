@@ -95,8 +95,8 @@ namespace App.Data
 
             var edgeTables = new Dictionary<string, string>
             {
-                { "person_workplaces", @"
-                    CREATE TABLE person_workplaces (
+                { "worked_at", @"
+                    CREATE TABLE worked_at (
                         start_id VARCHAR2(20),
                         end_id VARCHAR2(20),
                         start_date DATE,
@@ -105,24 +105,24 @@ namespace App.Data
                         FOREIGN KEY (start_id) REFERENCES persons(id),
                         FOREIGN KEY (end_id) REFERENCES workplaces(id)
                     )" },
-                { "person_to_work", @"
-                    CREATE TABLE person_to_work (
+                { "created", @"
+                    CREATE TABLE created (
                         start_id VARCHAR2(20),
                         end_id VARCHAR2(20),
                         PRIMARY KEY (start_id, end_id),
                         FOREIGN KEY (start_id) REFERENCES persons(id),
                         FOREIGN KEY (end_id) REFERENCES works(id)
                     )" },
-                { "person_to_field", @"
-                    CREATE TABLE person_to_field (
+                { "works_in", @"
+                    CREATE TABLE works_in (
                         start_id VARCHAR2(20),
                         end_id VARCHAR2(20),
                         PRIMARY KEY (start_id, end_id),
                         FOREIGN KEY (start_id) REFERENCES persons(id),
                         FOREIGN KEY (end_id) REFERENCES fields(id)
                     )" },
-                { "person_to_occupation", @"
-                    CREATE TABLE person_to_occupation (
+                { "has_occupation", @"
+                    CREATE TABLE has_occupation (
                         start_id VARCHAR2(20),
                         end_id VARCHAR2(20),
                         PRIMARY KEY (start_id, end_id),
@@ -169,32 +169,32 @@ namespace App.Data
                         FOREIGN KEY (start_id) REFERENCES persons(id),
                         FOREIGN KEY (end_id) REFERENCES persons(id)
                     )" },
-                { "person_to_award", @"
-                    CREATE TABLE person_to_award (
+                { "received", @"
+                    CREATE TABLE received (
                         start_id VARCHAR2(20),
                         end_id VARCHAR2(20),
                         PRIMARY KEY (start_id, end_id),
                         FOREIGN KEY (start_id) REFERENCES persons(id),
                         FOREIGN KEY (end_id) REFERENCES awards(id)
                     )" },
-                { "person_to_birth_in", @"
-                    CREATE TABLE person_to_birth_in (
+                { "birth_in", @"
+                    CREATE TABLE birth_in (
                         start_id VARCHAR2(20),
                         end_id VARCHAR2(20),
                         PRIMARY KEY (start_id, end_id),
                         FOREIGN KEY (start_id) REFERENCES persons(id),
                         FOREIGN KEY (end_id) REFERENCES places(id)
                     )" },
-                { "person_to_died_in", @"
-                    CREATE TABLE person_to_died_in (
+                { "died_in", @"
+                    CREATE TABLE died_in (
                         start_id VARCHAR2(20),
                         end_id VARCHAR2(20),
                         PRIMARY KEY (start_id, end_id),
                         FOREIGN KEY (start_id) REFERENCES persons(id),
                         FOREIGN KEY (end_id) REFERENCES places(id)
                     )" },
-                { "person_to_national_of", @"
-                    CREATE TABLE person_to_national_of (
+                { "national_of", @"
+                    CREATE TABLE national_of (
                         start_id VARCHAR2(20),
                         end_id VARCHAR2(20),
                         PRIMARY KEY (start_id, end_id),
@@ -250,7 +250,9 @@ namespace App.Data
 
             var tables = new[]
             {
-                "person_workplaces", "person_to_work", "person_to_field", "person_to_occupation",
+                "worked_at", "created", "works_in", "has_occupation", "advisor_of", "father_of", "mother_of",
+                "influenced_by", "partner_of", "received", "birth_in", "died_in", "national_of", "relative_of",
+                "significant_person_for", "student_of",
                 "persons", "works", "awards", "places", "workplaces", "fields", "occupations"
             };
 
@@ -285,7 +287,7 @@ namespace App.Data
 
             // For edge tables referencing persons, load all valid person IDs
             HashSet<string> personIds = null;
-            if (tableName == "advisor_of" || tableName == "father_of" || tableName == "mother_of" || tableName == "influenced_by" || tableName == "partner_of" || tableName == "relative_of" || tableName == "significant_person_for" || tableName == "student_of" || tableName == "person_workplaces" || tableName == "person_to_work" || tableName == "person_to_field" || tableName == "person_to_occupation")
+            if (tableName == "advisor_of" || tableName == "father_of" || tableName == "mother_of" || tableName == "influenced_by" || tableName == "partner_of" || tableName == "relative_of" || tableName == "significant_person_for" || tableName == "student_of" || tableName == "worked_at" || tableName == "created" || tableName == "works_in" || tableName == "has_occupation")
             {
                 var personsPath = Path.Combine(Path.GetDirectoryName(csvPath)!, "..", "nodes", "persons.csv");
                 personIds = new HashSet<string>();
@@ -332,10 +334,27 @@ namespace App.Data
                         {
                             var startId = dict["start_id"]?.ToString();
                             var endId = dict["end_id"]?.ToString();
-                            if (!personIds.Contains(startId) || !personIds.Contains(endId))
+                            
+                            // Only check both IDs for person-to-person relationships
+                            if (tableName == "advisor_of" || tableName == "father_of" || tableName == "mother_of" || 
+                                tableName == "influenced_by" || tableName == "partner_of" || tableName == "relative_of" || 
+                                tableName == "significant_person_for" || tableName == "student_of")
                             {
-                                skippedRecords++;
-                                continue; // skip this row
+                                // Both IDs must be persons for person-to-person relationships
+                                if (!personIds.Contains(startId) || !personIds.Contains(endId))
+                                {
+                                    skippedRecords++;
+                                    continue;
+                                }
+                            }
+                            else
+                            {
+                                // Only start_id must be a person for other relationships (person-to-occupation, person-to-work, etc.)
+                                if (!personIds.Contains(startId))
+                                {
+                                    skippedRecords++;
+                                    continue;
+                                }
                             }
                         }
                         var properties = dict.Keys
@@ -422,10 +441,18 @@ namespace App.Data
                             KEY (id) 
                             LABEL Work 
                             PROPERTIES (name),
+                        awards
+                            KEY (id) 
+                            LABEL Award 
+                            PROPERTIES (name),
+                        places 
+                            KEY (id) 
+                            LABEL Place 
+                            PROPERTIES (name, type),
                         workplaces 
                             KEY (id) 
                             LABEL Workplace 
-                            PROPERTIES (name),
+                            PROPERTIES (name, type),
                         fields 
                             KEY (id) 
                             LABEL Field 
@@ -436,23 +463,87 @@ namespace App.Data
                             PROPERTIES (name)
                     )
                     EDGE TABLES (
-                        person_workplaces 
+                        worked_at 
+                            KEY (start_id, end_id)
                             SOURCE KEY (start_id) REFERENCES persons(id)
                             DESTINATION KEY (end_id) REFERENCES workplaces(id)
                             LABEL WORKED_AT
                             PROPERTIES (start_date, end_date),
-                        person_to_work 
+                        created 
+                            KEY (start_id, end_id)
                             SOURCE KEY (start_id) REFERENCES persons(id)
                             DESTINATION KEY (end_id) REFERENCES works(id)
                             LABEL CREATED,
-                        person_to_field 
+                        works_in 
+                            KEY (start_id, end_id)
                             SOURCE KEY (start_id) REFERENCES persons(id)
                             DESTINATION KEY (end_id) REFERENCES fields(id)
                             LABEL SPECIALIZED_IN,
-                        person_to_occupation 
+                        has_occupation 
+                            KEY (start_id, end_id)
                             SOURCE KEY (start_id) REFERENCES persons(id)
                             DESTINATION KEY (end_id) REFERENCES occupations(id)
-                            LABEL HAS_OCCUPATION
+                            LABEL HAS_OCCUPATION,
+                        received
+                            KEY (start_id, end_id)
+                            SOURCE KEY (start_id) REFERENCES persons(id)
+                            DESTINATION KEY (end_id) REFERENCES awards(id)
+                            LABEL RECEIVED,
+                        birth_in
+                            KEY (start_id, end_id)
+                            SOURCE KEY (start_id) REFERENCES persons(id)
+                            DESTINATION KEY (end_id) REFERENCES places(id)
+                            LABEL BORN_IN,
+                        died_in
+                            KEY (start_id, end_id)
+                            SOURCE KEY (start_id) REFERENCES persons(id)
+                            DESTINATION KEY (end_id) REFERENCES places(id)
+                            LABEL DIED_IN,
+                        national_of
+                            KEY (start_id, end_id)
+                            SOURCE KEY (start_id) REFERENCES persons(id)
+                            DESTINATION KEY (end_id) REFERENCES places(id)
+                            LABEL NATIONAL_OF,
+                        advisor_of
+                            KEY (start_id, end_id)
+                            SOURCE KEY (start_id) REFERENCES persons(id)
+                            DESTINATION KEY (end_id) REFERENCES persons(id)
+                            LABEL ADVISOR_OF,
+                        father_of
+                            KEY (start_id, end_id)
+                            SOURCE KEY (start_id) REFERENCES persons(id)
+                            DESTINATION KEY (end_id) REFERENCES persons(id)
+                            LABEL FATHER_OF,
+                        mother_of
+                            KEY (start_id, end_id)
+                            SOURCE KEY (start_id) REFERENCES persons(id)
+                            DESTINATION KEY (end_id) REFERENCES persons(id)
+                            LABEL MOTHER_OF,
+                        influenced_by
+                            KEY (start_id, end_id)
+                            SOURCE KEY (start_id) REFERENCES persons(id)
+                            DESTINATION KEY (end_id) REFERENCES persons(id)
+                            LABEL INFLUENCED_BY,
+                        partner_of
+                            KEY (start_id, end_id)
+                            SOURCE KEY (start_id) REFERENCES persons(id)
+                            DESTINATION KEY (end_id) REFERENCES persons(id)
+                            LABEL PARTNER_OF,
+                        relative_of
+                            KEY (start_id, end_id)
+                            SOURCE KEY (start_id) REFERENCES persons(id)
+                            DESTINATION KEY (end_id) REFERENCES persons(id)
+                            LABEL RELATIVE_OF,
+                        significant_person_for
+                            KEY (start_id, end_id)
+                            SOURCE KEY (start_id) REFERENCES persons(id)
+                            DESTINATION KEY (end_id) REFERENCES persons(id)
+                            LABEL SIGNIFICANT_FOR,
+                        student_of
+                            KEY (start_id, end_id)
+                            SOURCE KEY (start_id) REFERENCES persons(id)
+                            DESTINATION KEY (end_id) REFERENCES persons(id)
+                            LABEL STUDENT_OF
                     )";
 
                 using var createCommand = new OracleCommand(createGraphCommand, connection);
@@ -466,6 +557,183 @@ namespace App.Data
             }
         }
 
+        // Create PGQL Property Graph for visualization
+        public async Task CreatePgqlPropertyGraph()
+        {
+            using var connection = new OracleConnection(_oracleConnectionString);
+            await connection.OpenAsync();
+
+            try
+            {
+                // Drop existing PGQL graph if it exists
+                var dropGraphCommand = "BEGIN EXECUTE IMMEDIATE 'DROP PROPERTY GRAPH knowledge_graph_pgql'; EXCEPTION WHEN OTHERS THEN NULL; END;";
+                using (var dropCommand = new OracleCommand(dropGraphCommand, connection))
+                {
+                    await dropCommand.ExecuteNonQueryAsync();
+                }
+
+                // Correct Oracle PGQL syntax
+                var createPgqlGraphCommand = @"
+                    CREATE PROPERTY GRAPH knowledge_graph_pgql
+                    VERTEX TABLES (
+                        persons 
+                            KEY (id) 
+                            LABEL Person 
+                            PROPERTIES (name, birth_date, death_date, gender, description),
+                        works 
+                            KEY (id) 
+                            LABEL Work 
+                            PROPERTIES (name),
+                        awards
+                            KEY (id) 
+                            LABEL Award 
+                            PROPERTIES (name),
+                        places 
+                            KEY (id) 
+                            LABEL Place 
+                            PROPERTIES (name, type),
+                        workplaces 
+                            KEY (id) 
+                            LABEL Workplace 
+                            PROPERTIES (name, type),
+                        fields 
+                            KEY (id) 
+                            LABEL Field 
+                            PROPERTIES (name),
+                        occupations 
+                            KEY (id) 
+                            LABEL Occupation 
+                            PROPERTIES (name)
+                    )
+                    EDGE TABLES (
+                        worked_at 
+                            KEY (start_id, end_id)
+                            SOURCE KEY (start_id) REFERENCES persons(id)
+                            DESTINATION KEY (end_id) REFERENCES workplaces(id)
+                            LABEL WORKED_AT
+                            PROPERTIES (start_date, end_date),
+                        created 
+                            KEY (start_id, end_id)
+                            SOURCE KEY (start_id) REFERENCES persons(id)
+                            DESTINATION KEY (end_id) REFERENCES works(id)
+                            LABEL CREATED,
+                        works_in 
+                            KEY (start_id, end_id)
+                            SOURCE KEY (start_id) REFERENCES persons(id)
+                            DESTINATION KEY (end_id) REFERENCES fields(id)
+                            LABEL SPECIALIZED_IN,
+                        has_occupation 
+                            KEY (start_id, end_id)
+                            SOURCE KEY (start_id) REFERENCES persons(id)
+                            DESTINATION KEY (end_id) REFERENCES occupations(id)
+                            LABEL HAS_OCCUPATION,
+                        received
+                            KEY (start_id, end_id)
+                            SOURCE KEY (start_id) REFERENCES persons(id)
+                            DESTINATION KEY (end_id) REFERENCES awards(id)
+                            LABEL RECEIVED,
+                        birth_in
+                            KEY (start_id, end_id)
+                            SOURCE KEY (start_id) REFERENCES persons(id)
+                            DESTINATION KEY (end_id) REFERENCES places(id)
+                            LABEL BORN_IN,
+                        died_in
+                            KEY (start_id, end_id)
+                            SOURCE KEY (start_id) REFERENCES persons(id)
+                            DESTINATION KEY (end_id) REFERENCES places(id)
+                            LABEL DIED_IN,
+                        national_of
+                            KEY (start_id, end_id)
+                            SOURCE KEY (start_id) REFERENCES persons(id)
+                            DESTINATION KEY (end_id) REFERENCES places(id)
+                            LABEL NATIONAL_OF,
+                        advisor_of
+                            KEY (start_id, end_id)
+                            SOURCE KEY (start_id) REFERENCES persons(id)
+                            DESTINATION KEY (end_id) REFERENCES persons(id)
+                            LABEL ADVISOR_OF,
+                        father_of
+                            KEY (start_id, end_id)
+                            SOURCE KEY (start_id) REFERENCES persons(id)
+                            DESTINATION KEY (end_id) REFERENCES persons(id)
+                            LABEL FATHER_OF,
+                        mother_of
+                            KEY (start_id, end_id)
+                            SOURCE KEY (start_id) REFERENCES persons(id)
+                            DESTINATION KEY (end_id) REFERENCES persons(id)
+                            LABEL MOTHER_OF,
+                        influenced_by
+                            KEY (start_id, end_id)
+                            SOURCE KEY (start_id) REFERENCES persons(id)
+                            DESTINATION KEY (end_id) REFERENCES persons(id)
+                            LABEL INFLUENCED_BY,
+                        partner_of
+                            KEY (start_id, end_id)
+                            SOURCE KEY (start_id) REFERENCES persons(id)
+                            DESTINATION KEY (end_id) REFERENCES persons(id)
+                            LABEL PARTNER_OF,
+                        relative_of
+                            KEY (start_id, end_id)
+                            SOURCE KEY (start_id) REFERENCES persons(id)
+                            DESTINATION KEY (end_id) REFERENCES persons(id)
+                            LABEL RELATIVE_OF,
+                        significant_person_for
+                            KEY (start_id, end_id)
+                            SOURCE KEY (start_id) REFERENCES persons(id)
+                            DESTINATION KEY (end_id) REFERENCES persons(id)
+                            LABEL SIGNIFICANT_FOR,
+                        student_of
+                            KEY (start_id, end_id)
+                            SOURCE KEY (start_id) REFERENCES persons(id)
+                            DESTINATION KEY (end_id) REFERENCES persons(id)
+                            LABEL STUDENT_OF
+                    )";
+
+                using var createCommand = new OracleCommand(createPgqlGraphCommand, connection);
+                await createCommand.ExecuteNonQueryAsync();
+                Console.WriteLine("PGQL Property graph created successfully");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error creating PGQL property graph: {ex.Message}");
+                
+                // Try alternative approach without OPTIONS
+                try
+                {
+                    Console.WriteLine("Trying simplified PGQL syntax...");
+                    await CreateSimplifiedPgqlGraph(connection);
+                }
+                catch (Exception ex2)
+                {
+                    Console.WriteLine($"Simplified approach also failed: {ex2.Message}");
+                    throw;
+                }
+            }
+        }
+
+        private async Task CreateSimplifiedPgqlGraph(OracleConnection connection)
+        {
+            // Simplified approach - create PGQL views step by step
+            var simplifiedCommands = new[]
+            {
+                @"CREATE OR REPLACE VIEW persons_graph AS 
+                  SELECT id, name, birth_date, death_date, gender, description FROM persons",
+                
+                @"CREATE OR REPLACE VIEW works_graph AS 
+                  SELECT id, name FROM works",
+                  
+                @"CREATE OR REPLACE VIEW created_graph AS 
+                  SELECT start_id as source_id, end_id as target_id FROM created"
+            };
+
+            foreach (var cmd in simplifiedCommands)
+            {
+                using var command = new OracleCommand(cmd, connection);
+                await command.ExecuteNonQueryAsync();
+            }
+            
+            Console.WriteLine("Simplified PGQL views created successfully");
+        }
 
         // Import a single person's data
         public async Task ImportPersonData(Person person)
@@ -490,65 +758,119 @@ namespace App.Data
                     command.Parameters.Add(":death_date", person.DeathDate);
                     command.Parameters.Add(":gender", person.Gender);
                     command.Parameters.Add(":description", person.Description);
-                    await command.ExecuteNonQueryAsync();
+                    try { await command.ExecuteNonQueryAsync(); } catch (OracleException ex) when (ex.Number == 1) { /* ignore */ }
                 }
 
-                // Insert fields
+                // Insert fields and relationship
                 foreach (var field in person.Fields)
                 {
-                    var insertFieldCommand = @"
-                        INSERT INTO fields (id, name)
-                        VALUES (:id, :name)";
-
-                    using (var command = new OracleCommand(insertFieldCommand, connection))
+                    try
                     {
-                        command.Transaction = transaction;
-                        command.Parameters.Add(":id", field.Name);
-                        command.Parameters.Add(":name", field.Name);
-                        await command.ExecuteNonQueryAsync();
+                        using var cmd = new OracleCommand("INSERT INTO fields (id, name) VALUES (:id, :name)", connection) { Transaction = transaction };
+                        cmd.Parameters.Add(":id", field.Name);
+                        cmd.Parameters.Add(":name", field.Name);
+                        await cmd.ExecuteNonQueryAsync();
                     }
+                    catch (OracleException ex) when (ex.Number == 1) { /* ignore */ }
 
-                    var insertPersonFieldCommand = @"
-                        INSERT INTO person_to_field (start_id, end_id)
-                        VALUES (:start_id, :end_id)";
-
-                    using (var command = new OracleCommand(insertPersonFieldCommand, connection))
+                    try
                     {
-                        command.Transaction = transaction;
-                        command.Parameters.Add(":start_id", person.Id);
-                        command.Parameters.Add(":end_id", field.Name);
-                        await command.ExecuteNonQueryAsync();
+                        using var cmd = new OracleCommand("INSERT INTO works_in (start_id, end_id) VALUES (:start_id, :end_id)", connection) { Transaction = transaction };
+                        cmd.Parameters.Add(":start_id", person.Id);
+                        cmd.Parameters.Add(":end_id", field.Name);
+                        await cmd.ExecuteNonQueryAsync();
                     }
+                    catch (OracleException ex) when (ex.Number == 1) { /* ignore */ }
                 }
 
-                // Insert workplaces
+                // Insert workplaces and relationship
                 foreach (var workplace in person.Workplaces)
                 {
-                    var insertWorkplaceCommand = @"
-                        INSERT INTO workplaces (id, name)
-                        VALUES (:id, :name)";
-
-                    using (var command = new OracleCommand(insertWorkplaceCommand, connection))
+                    try
                     {
-                        command.Transaction = transaction;
-                        command.Parameters.Add(":id", workplace.WorkplaceId);
-                        command.Parameters.Add(":name", workplace.WorkplaceId);
-                        await command.ExecuteNonQueryAsync();
+                        using var cmd = new OracleCommand("INSERT INTO workplaces (id, name) VALUES (:id, :name)", connection) { Transaction = transaction };
+                        cmd.Parameters.Add(":id", workplace.WorkplaceId);
+                        cmd.Parameters.Add(":name", workplace.WorkplaceName);
+                        await cmd.ExecuteNonQueryAsync();
                     }
-
-                    var insertPersonWorkplaceCommand = @"
-                        INSERT INTO person_workplaces (start_id, end_id, start_date, end_date)
-                        VALUES (:start_id, :end_id, :start_date, :end_date)";
-
-                    using (var command = new OracleCommand(insertPersonWorkplaceCommand, connection))
+                    catch (OracleException ex) when (ex.Number == 1) { /* ignore */ }
+                    
+                    try
                     {
-                        command.Transaction = transaction;
-                        command.Parameters.Add(":start_id", person.Id);
-                        command.Parameters.Add(":end_id", workplace.WorkplaceId);
-                        command.Parameters.Add(":start_date", workplace.StartDate);
-                        command.Parameters.Add(":end_date", workplace.EndDate);
-                        await command.ExecuteNonQueryAsync();
+                        using var cmd = new OracleCommand("INSERT INTO worked_at (start_id, end_id, start_date, end_date) VALUES (:start_id, :end_id, :start_date, :end_date)", connection) { Transaction = transaction };
+                        cmd.Parameters.Add(":start_id", person.Id);
+                        cmd.Parameters.Add(":end_id", workplace.WorkplaceId);
+                        cmd.Parameters.Add(":start_date", workplace.StartDate);
+                        cmd.Parameters.Add(":end_date", workplace.EndDate);
+                        await cmd.ExecuteNonQueryAsync();
                     }
+                    catch (OracleException ex) when (ex.Number == 1) { /* ignore */ }
+                }
+
+                // Insert awards and relationship
+                foreach (var award in person.Awards)
+                {
+                    try
+                    {
+                        using var cmd = new OracleCommand("INSERT INTO awards (id, name) VALUES (:id, :name)", connection) { Transaction = transaction };
+                        cmd.Parameters.Add(":id", award.AwardId);
+                        cmd.Parameters.Add(":name", award.AwardName);
+                        await cmd.ExecuteNonQueryAsync();
+                    }
+                    catch (OracleException ex) when (ex.Number == 1) { /* ignore */ }
+
+                    try
+                    {
+                        using var cmd = new OracleCommand("INSERT INTO received (start_id, end_id) VALUES (:start_id, :end_id)", connection) { Transaction = transaction };
+                        cmd.Parameters.Add(":start_id", person.Id);
+                        cmd.Parameters.Add(":end_id", award.AwardId);
+                        await cmd.ExecuteNonQueryAsync();
+                    }
+                    catch (OracleException ex) when (ex.Number == 1) { /* ignore */ }
+                }
+
+                // Insert occupations and relationship
+                foreach (var occupation in person.Occupations)
+                {
+                    try
+                    {
+                        using var cmd = new OracleCommand("INSERT INTO occupations (id, name) VALUES (:id, :name)", connection) { Transaction = transaction };
+                        cmd.Parameters.Add(":id", occupation.Id); 
+                        cmd.Parameters.Add(":name", occupation.Name);
+                        await cmd.ExecuteNonQueryAsync();
+                    }
+                    catch (OracleException ex) when (ex.Number == 1) { /* ignore */ }
+
+                    try
+                    {
+                        using var cmd = new OracleCommand("INSERT INTO has_occupation (start_id, end_id) VALUES (:start_id, :end_id)", connection) { Transaction = transaction };
+                        cmd.Parameters.Add(":start_id", person.Id);
+                        cmd.Parameters.Add(":end_id", occupation.Id);
+                        await cmd.ExecuteNonQueryAsync();
+                    }
+                    catch (OracleException ex) when (ex.Number == 1) { /* ignore */ }
+                }
+
+                // Insert works and relationship
+                foreach (var work in person.NotableWorks)
+                {
+                    try
+                    {
+                        using var cmd = new OracleCommand("INSERT INTO works (id, name) VALUES (:id, :name)", connection) { Transaction = transaction };
+                        cmd.Parameters.Add(":id", work.WorkId);
+                        cmd.Parameters.Add(":name", work.WorkName);
+                        await cmd.ExecuteNonQueryAsync();
+                    }
+                    catch (OracleException ex) when (ex.Number == 1) { /* ignore */ }
+
+                    try
+                    {
+                        using var cmd = new OracleCommand("INSERT INTO created (start_id, end_id) VALUES (:start_id, :end_id)", connection) { Transaction = transaction };
+                        cmd.Parameters.Add(":start_id", person.Id);
+                        cmd.Parameters.Add(":end_id", work.WorkId);
+                        await cmd.ExecuteNonQueryAsync();
+                    }
+                    catch (OracleException ex) when (ex.Number == 1) { /* ignore */ }
                 }
 
                 await transaction.CommitAsync();
@@ -582,7 +904,7 @@ namespace App.Data
                 }
             }
 
-            // Edge tables (mapping start_id/end_id to source_id/target_id)
+            // Edge tables (mapping new table names to old CSV file names)
             var edgeFiles = new Dictionary<string, string>
             {
                 { "advisor_of", Path.Combine(basePath, "edges", "advisor_of.csv") },
@@ -590,17 +912,17 @@ namespace App.Data
                 { "mother_of", Path.Combine(basePath, "edges", "mother_of.csv") },
                 { "influenced_by", Path.Combine(basePath, "edges", "influenced_by.csv") },
                 { "partner_of", Path.Combine(basePath, "edges", "partner_of.csv") },
-                { "person_to_award", Path.Combine(basePath, "edges", "person_to_award.csv") },
-                { "person_to_birth_in", Path.Combine(basePath, "edges", "person_to_birth_in.csv") },
-                { "person_to_died_in", Path.Combine(basePath, "edges", "person_to_died_in.csv") },
-                { "person_to_national_of", Path.Combine(basePath, "edges", "person_to_national_of.csv") },
+                { "received", Path.Combine(basePath, "edges", "person_to_award.csv") },
+                { "birth_in", Path.Combine(basePath, "edges", "person_to_birth_in.csv") },
+                { "died_in", Path.Combine(basePath, "edges", "person_to_died_in.csv") },
+                { "national_of", Path.Combine(basePath, "edges", "person_to_national_of.csv") },
                 { "relative_of", Path.Combine(basePath, "edges", "relative_of.csv") },
                 { "significant_person_for", Path.Combine(basePath, "edges", "significant_person_for.csv") },
                 { "student_of", Path.Combine(basePath, "edges", "student_of.csv") },
-                { "person_to_work", Path.Combine(basePath, "edges", "person_to_work.csv") },
-                { "person_workplaces", Path.Combine(basePath, "edges", "person_workplaces.csv") },
-                { "person_to_occupation", Path.Combine(basePath, "edges", "person_to_occupation.csv") },
-                { "person_to_field", Path.Combine(basePath, "edges", "person_to_field.csv") }
+                { "created", Path.Combine(basePath, "edges", "person_to_work.csv") },
+                { "worked_at", Path.Combine(basePath, "edges", "person_workplaces.csv") },
+                { "has_occupation", Path.Combine(basePath, "edges", "person_to_occupation.csv") },
+                { "works_in", Path.Combine(basePath, "edges", "person_to_field.csv") }
             };
             foreach (var kv in edgeFiles)
             {
