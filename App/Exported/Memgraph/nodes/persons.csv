@@ -1,0 +1,14 @@
+id,name,birth_date,death_date,gender,description
+Q7251,Alan Turing,06/23/1912 00:00:00,06/07/1954 00:00:00,Male,English computer scientist (1912–1954)
+Q21693479,Christopher Morcom,07/13/1911 00:00:00,02/13/1930 00:00:00,Male,British scientist
+Q16493,Beatrice Helen Worsley,10/18/1921 00:00:00,05/08/1972 00:00:00,Female,first female computer scientist in Canada (1922-1972)
+Q92741,Alonzo Church,06/14/1903 00:00:00,08/11/1995 00:00:00,Male,American mathematician and logician (1903–1995)
+Q249984,Robin Gandy,09/22/1919 00:00:00,11/20/1995 00:00:00,Male,British mathematician and logician
+Q20895930,Julius Mathison Turing,11/09/1873 00:00:00,08/03/1947 00:00:00,Male,"father of Alan Turing, English mathematician (1873-1947)"
+Q20895935,Ethel Sara Stoney,11/18/1881 00:00:00,03/06/1976 00:00:00,Female,"mother of Alan Turing, English mathematician"
+Q224372,I. J. Good,12/09/1916 00:00:00,04/05/2009 00:00:00,Male,British statistician and cryptographer
+Q298521,Saul Kripke,11/13/1940 00:00:00,09/15/2022 00:00:00,Male,American philosopher and logician (1940–2022)
+Q310798,Stephen Wolfram,08/29/1959 00:00:00,,Male,British-American scientist and businessman (born 1959)
+Q450154,Andrew Hodges,01/01/1949 00:00:00,,Male,mathematician and popular science author
+Q43075535,Dermot Turing,02/26/1961 00:00:00,,Male,British solicitor and author
+Q59884129,Cicely Popplewell,10/29/1920 00:00:00,06/20/1995 00:00:00,Female,British software engineer
