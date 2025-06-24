@@ -49,7 +49,21 @@ async function initializeServer() {
         app.listen(PORT, () => {
             console.log(`✅ Server läuft auf http://c017-master.infcs.de:${PORT}`);
             console.log('\n📍 Verfügbare Endpoints:');
+            console.log('   === Health & Status ===');
             console.log('   - GET  /api/health');
+            console.log('   - GET  /api/graph/health');
+            console.log('');
+            console.log('   === Property Graph Management ===');
+            console.log('   - POST /api/graph/create');
+            console.log('   - DELETE /api/graph/:graphName');
+            console.log('   - GET  /api/graph/list');
+            console.log('   - GET  /api/graph/:graphName/stats');
+            console.log('   - GET  /api/graph/:graphName/visualization');
+            console.log('   - GET  /api/graph/:graphName/explore');
+            console.log('   - POST /api/graph/:graphName/query');
+            console.log('   - POST /api/graph/recreate');
+            console.log('');
+            console.log('   === Entity APIs (Oracle + Memgraph) ===');
             console.log('   - GET  /api/person');
             console.log('   - GET  /api/person/:id');
             console.log('   - GET  /api/person/:id/relationships');
@@ -60,7 +74,12 @@ async function initializeServer() {
             console.log('   - GET  /api/workplace');
             console.log('   - GET  /api/field');
             console.log('   - GET  /api/occupation');
+            console.log('');
+            console.log('   === Direct Queries ===');
             console.log('   - POST /api/query');
+            console.log('\n🎯 Quick Start:');
+            console.log(`   curl -X POST http://c017-master.infcs.de:${PORT}/api/graph/create`);
+            console.log(`   curl http://c017-master.infcs.de:${PORT}/api/graph/health`);
         });
 
     } catch (error) {
@@ -71,15 +90,17 @@ async function initializeServer() {
 
 // Routes einrichten
 function setupRoutes() {
-    // Health Check
+    // Health Check - Erweitert mit Property Graph Status
     app.get('/api/health', async (req, res) => {
         try {
             const health = {
                 status: 'ok',
                 timestamp: new Date().toISOString(),
+                server: 'Unified Backend',
                 databases: {
                     oracle: false,
-                    memgraph: false
+                    memgraph: false,
+                    propertyGraph: false
                 }
             };
 
@@ -90,6 +111,7 @@ function setupRoutes() {
                 health.databases.oracle = true;
             } catch (e) {
                 console.error('Oracle health check failed:', e.message);
+                health.databases.oracleError = e.message;
             }
 
             // Memgraph Check
@@ -99,6 +121,20 @@ function setupRoutes() {
                 health.databases.memgraph = true;
             } catch (e) {
                 console.error('Memgraph health check failed:', e.message);
+                health.databases.memgraphError = e.message;
+            }
+
+            // Property Graph Check
+            try {
+                const PropertyGraphService = require('./src/services/PropertyGraphService');
+                const pgService = new PropertyGraphService();
+                await pgService.authenticate();
+                const graphs = await pgService.listGraphs();
+                health.databases.propertyGraph = true;
+                health.databases.availableGraphs = graphs.length;
+            } catch (e) {
+                console.error('Property Graph health check failed:', e.message);
+                health.databases.propertyGraphError = e.message;
             }
 
             res.json(health);
@@ -110,7 +146,10 @@ function setupRoutes() {
         }
     });
 
-    // Entity Routes
+    // === PROPERTY GRAPH ROUTES ===
+    app.use('/api/graph', require('./src/routes/graph')(repositoryFactory));
+
+    // === ENTITY ROUTES (bestehende) ===
     app.use('/api/person', require('./src/routes/person')(repositoryFactory));
     app.use('/api/place', require('./src/routes/place')(repositoryFactory));
     app.use('/api/work', require('./src/routes/work')(repositoryFactory));
@@ -119,23 +158,55 @@ function setupRoutes() {
     app.use('/api/field', require('./src/routes/field')(repositoryFactory));
     app.use('/api/occupation', require('./src/routes/occupation')(repositoryFactory));
 
-    // Query Route (für direkte Cypher/SQL Queries)
+    // === QUERY ROUTES (bestehende) ===
     app.use('/api/query', require('./src/routes/query')(repositoryFactory));
 
+    // === ROOT INFO ===
+    app.get('/', (req, res) => {
+        res.json({
+            name: 'Unified Backend API',
+            version: '1.0.0',
+            description: 'Unified API for Memgraph and Oracle Property Graphs',
+            endpoints: {
+                health: '/api/health',
+                propertyGraphs: '/api/graph/*',
+                entities: '/api/{person|place|work|award|workplace|field|occupation}',
+                directQueries: '/api/query'
+            },
+            documentation: {
+                propertyGraphManagement: {
+                    create: 'POST /api/graph/create',
+                    list: 'GET /api/graph/list',
+                    stats: 'GET /api/graph/{name}/stats',
+                    visualization: 'GET /api/graph/{name}/visualization',
+                    customQuery: 'POST /api/graph/{name}/query'
+                }
+            }
+        });
+    });
+
+    // === ERROR HANDLERS ===
     // 404 Handler
     app.use((req, res) => {
         res.status(404).json({
             success: false,
-            error: 'Endpoint nicht gefunden'
+            error: 'Endpoint nicht gefunden',
+            availableEndpoints: [
+                '/api/health',
+                '/api/graph/*',
+                '/api/person',
+                '/api/query'
+            ]
         });
     });
 
-    // Error Handler
+    // Global Error Handler
     app.use((err, req, res, next) => {
         console.error('Server Error:', err);
         res.status(500).json({
             success: false,
-            error: err.message || 'Interner Serverfehler'
+            error: err.message || 'Interner Serverfehler',
+            timestamp: new Date().toISOString()
         });
     });
 }
@@ -150,7 +221,9 @@ process.on('SIGINT', async () => {
     }
 
     // Oracle Pool wird automatisch geschlossen
+    console.log('✅ Oracle Pool geschlossen');
 
+    console.log('👋 Server erfolgreich heruntergefahren');
     process.exit(0);
 });
 

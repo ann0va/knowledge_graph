@@ -1,13 +1,19 @@
-﻿// src/repositories/BaseRepository.js - Basis-Repository mit Property Graph Support
-const oracledb = require('oracledb');
+﻿// src/repositories/BaseRepository_CLEAN.js - Komplett neue, saubere Version
+const { OracleGraphRESTClient } = require('../../oracle_graph_js_client');
 
 class BaseRepository {
     constructor(db, dbType) {
         this.db = db;
         this.dbType = dbType;
+
+        // Oracle Property Graph Client für Oracle-Queries
+        if (dbType === 'oracle') {
+            this.pgClient = new OracleGraphRESTClient();
+            this.defaultGraph = 'ALL_GRAPH';
+        }
     }
 
-    // Führe Query aus - unterschiedliche Logik für Oracle vs Memgraph
+    // Hauptmethode: Query ausführen
     async execute(queries, params = {}) {
         const query = queries[this.dbType];
 
@@ -16,173 +22,164 @@ class BaseRepository {
         }
 
         if (this.dbType === 'oracle') {
-            return await this.executeOracle(query, params);
+            return await this.executeOraclePGQL(query, params);
         } else if (this.dbType === 'memgraph') {
-            return await this.executeMemgraph(query, params);
+            return await this.executeMemgraphFixed(query, params);
         }
 
         throw new Error(`Unbekannter Datenbanktyp: ${this.dbType}`);
     }
 
-    // Oracle Query ausführen
-    async executeOracle(query, params) {
-        let connection;
+    // Oracle PGQL Query ausführen
+    async executeOraclePGQL(query, params = {}) {
         try {
-            connection = await this.db.getConnection();
-
-            // Optionen für bessere Ergebnisse
-            const options = {
-                outFormat: oracledb.OUT_FORMAT_OBJECT,
-                autoCommit: true
-            };
-
-            const result = await connection.execute(query, params, options);
-
-            // Bei SELECT: rows zurückgeben
-            if (query.trim().toUpperCase().startsWith('SELECT')) {
-                return result;
+            // Authentication sicherstellen
+            if (!this.pgClient.token) {
+                await this.pgClient.authenticate();
             }
 
-            // Bei INSERT/UPDATE/DELETE: rowsAffected zurückgeben
-            return {
-                success: true,
-                rowsAffected: result.rowsAffected
-            };
+            // Parameter in Query ersetzen (PGQL verwendet keine Prepared Statements)
+            let processedQuery = query;
+            for (const [key, value] of Object.entries(params)) {
+                const paramPlaceholder = new RegExp(`:${key}\\b`, 'g');
+                const paramValue = typeof value === 'string' ? `'${value}'` : value;
+                processedQuery = processedQuery.replace(paramPlaceholder, paramValue);
+            }
+
+            console.log('🔍 Oracle PGQL Query:', processedQuery);
+
+            const result = await this.pgClient.runPGQLQuery(processedQuery);
+
+            if (!result?.results?.[0]?.success) {
+                const error = result?.results?.[0]?.error || 'PGQL Query failed';
+                throw new Error(`Oracle PGQL Error: ${error}`);
+            }
+
+            return this.parseOraclePGQLResult(result);
 
         } catch (error) {
-            console.error('Oracle Query Fehler:', error);
+            console.error('Oracle PGQL Fehler:', error.message);
             throw error;
-        } finally {
-            if (connection) {
-                try {
-                    await connection.close();
-                } catch (err) {
-                    console.error('Fehler beim Schließen der Oracle-Verbindung:', err);
+        }
+    }
+
+    // Memgraph Query ausführen - FIXED VERSION
+    async executeMemgraphFixed(query, params = {}) {
+        let session;
+        try {
+            session = this.db.getMemgraphSession ? this.db.getMemgraphSession() : this.db;
+
+            if (!session || !session.run) {
+                throw new Error('Invalid Memgraph session');
+            }
+
+            // Parameter direkt in Query einbauen (umgeht Neo4j Parameter-Bug)
+            let processedQuery = query;
+
+            // Numeric parameters
+            if (params.limit !== undefined) {
+                const limitValue = typeof params.limit === 'string' ? parseInt(params.limit, 10) : params.limit;
+                processedQuery = processedQuery.replace(/\$limit\b/g, limitValue.toString());
+            }
+
+            if (params.offset !== undefined) {
+                const offsetValue = typeof params.offset === 'string' ? parseInt(params.offset, 10) : params.offset;
+                processedQuery = processedQuery.replace(/\$offset\b/g, offsetValue.toString());
+            }
+
+            // String parameters
+            for (const [key, value] of Object.entries(params)) {
+                if (key !== 'limit' && key !== 'offset' && typeof value === 'string') {
+                    const escapedValue = value.replace(/'/g, "\\'");
+                    processedQuery = processedQuery.replace(new RegExp(`\\$${key}\\b`, 'g'), `'${escapedValue}'`);
                 }
             }
-        }
-    }
 
-    // Memgraph Query ausführen
-    async executeMemgraph(query, params) {
-        try {
-            const session = this.db.driver.session();
+            console.log('🔍 Memgraph Query (CLEAN):', processedQuery);
 
-            try {
-                const result = await session.run(query, params);
+            // Query OHNE Parameter-Objekt ausführen
+            const result = await session.run(processedQuery);
 
-                // Records in einfaches Format konvertieren
-                const records = result.records.map(record => {
-                    const obj = {};
-                    record.keys.forEach((key, index) => {
-                        const value = record._fields[index];
+            // Records konvertieren
+            const records = result.records.map(record => {
+                const obj = {};
+                record.keys.forEach((key, index) => {
+                    const value = record._fields[index];
 
-                        // Neo4j Node zu einfachem Objekt
-                        if (value && value.properties) {
-                            obj[key] = {
-                                ...value.properties,
-                                _labels: value.labels,
-                                _id: value.identity?.toString()
-                            };
-                        } else {
-                            obj[key] = value;
-                        }
-                    });
-
-                    // Wenn nur ein Feld, direkt zurückgeben
-                    if (record.keys.length === 1) {
-                        return obj[record.keys[0]];
+                    if (value && value.properties) {
+                        // Neo4j Node
+                        obj[key] = {
+                            ...value.properties,
+                            _labels: value.labels,
+                            _id: value.identity?.toString()
+                        };
+                    } else if (value && value.low !== undefined) {
+                        // Neo4j Integer
+                        obj[key] = value.toNumber ? value.toNumber() : value.low;
+                    } else {
+                        obj[key] = value;
                     }
-
-                    return obj;
                 });
 
-                return records;
+                return record.keys.length === 1 ? obj[record.keys[0]] : obj;
+            });
 
-            } finally {
+            return records;
+
+        } catch (error) {
+            console.error('Memgraph Query Fehler:', error.message);
+            throw error;
+        } finally {
+            if (session && session.close) {
                 await session.close();
             }
-        } catch (error) {
-            console.error('Memgraph Query Fehler:', error);
-            throw error;
         }
     }
 
-    // Hilfsmethode: Batch-Operation
-    async executeBatch(queries, paramsList) {
-        const results = [];
-
-        for (const params of paramsList) {
-            try {
-                const result = await this.execute(queries, params);
-                results.push({ success: true, result });
-            } catch (error) {
-                results.push({ success: false, error: error.message });
-            }
-        }
-
-        return results;
-    }
-
-    // Hilfsmethode: Transaction (nur für komplexe Operationen)
-    async executeTransaction(operations) {
-        if (this.dbType === 'oracle') {
-            return await this.executeOracleTransaction(operations);
-        } else {
-            return await this.executeMemgraphTransaction(operations);
-        }
-    }
-
-    // Oracle Transaction
-    async executeOracleTransaction(operations) {
-        let connection;
+    // Oracle PGQL Ergebnis parsen
+    parseOraclePGQLResult(result) {
         try {
-            connection = await this.db.getConnection();
+            const data = JSON.parse(result.results[0].result);
 
-            // Auto-commit ausschalten
-            await connection.execute('SET TRANSACTION READ WRITE');
+            if (data.table) {
+                const lines = data.table.split('\n').filter(line => line.trim());
+                if (lines.length <= 1) return [];
 
-            const results = [];
-            for (const { query, params } of operations) {
-                const result = await connection.execute(query, params || {});
-                results.push(result);
+                const headers = lines[0].split('\t');
+                const rows = lines.slice(1).map(line => {
+                    const values = line.split('\t');
+                    const row = {};
+                    headers.forEach((header, index) => {
+                        row[header] = values[index] || null;
+                    });
+                    return row;
+                });
+
+                return rows;
             }
 
-            await connection.commit();
-            return results;
+            return data;
 
-        } catch (error) {
-            if (connection) {
-                await connection.rollback();
-            }
-            throw error;
-        } finally {
-            if (connection) {
-                await connection.close();
-            }
+        } catch (parseError) {
+            console.warn('Could not parse Oracle PGQL result:', parseError.message);
+            return result;
         }
     }
 
-    // Memgraph Transaction
-    async executeMemgraphTransaction(operations) {
-        const session = this.db.driver.session();
-        const tx = session.beginTransaction();
-
+    // Health Check
+    async healthCheck() {
         try {
-            const results = [];
-            for (const { query, params } of operations) {
-                const result = await tx.run(query, params || {});
-                results.push(result);
+            if (this.dbType === 'oracle') {
+                await this.pgClient.authenticate();
+                return { status: 'ok', database: 'oracle_property_graph' };
+            } else {
+                const result = await this.execute({
+                    memgraph: 'RETURN 1 as test'
+                });
+                return { status: 'ok', database: 'memgraph', testResult: result };
             }
-
-            await tx.commit();
-            return results;
-
         } catch (error) {
-            await tx.rollback();
-            throw error;
-        } finally {
-            await session.close();
+            return { status: 'error', database: this.dbType, error: error.message };
         }
     }
 }

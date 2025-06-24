@@ -1,10 +1,10 @@
 ﻿// ALL_GRAPH Creator und Visualizer
 // Erstellt kompletten Graph aus allen Tabellen und visualisiert ihn
-const { OracleGraphRESTv2Client } = require('./oracle_graph_js_client');
+const { OracleGraphRESTClient } = require('./oracle_graph_js_client');
 
 class AllGraphCreator {
     constructor() {
-        this.client = new OracleGraphRESTv2Client();
+        this.client = new OracleGraphRESTClient();
         this.graphName = 'ALL_GRAPH';
     }
 
@@ -40,15 +40,51 @@ class AllGraphCreator {
     }
 
     async dropExistingGraph() {
-        console.log('🗑️ Dropping existing ALL_GRAPH...');
+        console.log('🗑️ Dropping existing ALL_GRAPH and related tables...');
 
-        const dropQuery = `DROP PROPERTY GRAPH ${this.graphName}`;
-        const result = await this.client.runPGQLQuery(dropQuery);
+        try {
+            // 1. Drop Property Graph selbst
+            const dropGraphQuery = `DROP PROPERTY GRAPH ${this.graphName}`;
+            const graphResult = await this.client.runPGQLQuery(dropGraphQuery);
 
-        if (result?.results?.[0]?.success) {
-            console.log('✅ Existing graph dropped');
-        } else {
-            console.log('ℹ️ No existing graph to drop');
+            if (graphResult?.results?.[0]?.success) {
+                console.log('✅ Property Graph dropped');
+            } else {
+                console.log('ℹ️ No existing Property Graph to drop');
+            }
+
+            // 2. Drop zusätzliche Metadaten-Tabellen
+            const metadataTables = [
+                `${this.graphName}_ELEM_TABLE$`,
+                `${this.graphName}_KEY$`,
+                `${this.graphName}_LABEL$`,
+                `${this.graphName}_PROPERTY$`,
+                `${this.graphName}_SRC_DST_KEY$`
+            ];
+
+            console.log('🗑️ Dropping metadata tables...');
+
+            for (const tableName of metadataTables) {
+                try {
+                    const dropTableQuery = `DROP TABLE ${tableName}`;
+                    const tableResult = await this.client.runPGQLQuery(dropTableQuery);
+
+                    if (tableResult?.results?.[0]?.success) {
+                        console.log(`✅ Table ${tableName} dropped`);
+                    } else {
+                        console.log(`ℹ️ Table ${tableName} does not exist or already dropped`);
+                    }
+                } catch (error) {
+                    // Einzelne Tabellen-Drops sollten nicht den ganzen Prozess stoppen
+                    console.log(`⚠️ Could not drop table ${tableName}: ${error.message}`);
+                }
+            }
+
+            console.log('✅ Graph cleanup completed');
+
+        } catch (error) {
+            console.warn('⚠️ Error during graph cleanup:', error.message);
+            // Nicht werfen, da wir trotzdem weitermachen wollen
         }
     }
 

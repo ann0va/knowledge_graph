@@ -1,123 +1,115 @@
-﻿
-// src/repositories/PersonRepository.js
+﻿// src/repositories/PersonRepository.js - Fixed für Property Graph
 const BaseRepository = require('./BaseRepository');
 
 class PersonRepository extends BaseRepository {
     constructor(db, dbType) {
         super(db, dbType);
+        // Fix: Unterschiedliche Label-Conventions
+        this.nodeLabel = dbType === 'oracle' ? 'PERSON' : 'person';
     }
 
-    // Alle Personen abrufen
+    // Alle Personen abrufen - Moderne PGQL Syntax
     async findAll(limit = 100) {
         const queries = {
-            oracle: `
-        SELECT x.id,
-               x.props
-        FROM TABLE(
-          GRAPH_TABLE(
-            knowledge_graph,                -- Graph-Name + Komma
-            MATCH (v)
-              WHERE v.vertex_type = 'PERSON'-- Filter für Person
-            COLUMNS (                       -- welche Spalten wir zurückhaben wollen
-              v.vertex_id   AS id,
-              v.properties  AS props
-            )
-          )
-        ) x                                 -- Alias
-        FETCH FIRST :limit ROWS ONLY        -- klassisches LIMIT
-      `,
-            memgraph: `
-        MATCH (p:Person)
-        RETURN p
-        LIMIT $limit
-      `
+            oracle: `SELECT id(p) as vertex_id,
+                            p.name,
+                            p.birth_date,
+                            p.death_date,
+                            p.gender,
+                            p.description
+                     FROM MATCH (p:PERSON) ON ${this.defaultGraph}
+                         LIMIT ${limit}`,
+            memgraph: `MATCH (p:person)
+                      RETURN id(p) as vertex_id,
+                             p.id as entity_id,
+                             p.name,
+                             p.birth_date,
+                             p.death_date,
+                             p.gender,
+                             p.description
+                      LIMIT $limit`
         };
 
-        const result = await this.execute(queries, { limit });
-
-        if (this.dbType === 'oracle') {
-            return result.rows.map(([id, props]) => ({ id, ...JSON.parse(props) }));
-        }
-        return result;
+        return await this.execute(queries, { limit: parseInt(limit) });
     }
 
     // Person nach ID suchen
-    async findById(id) {
+    async findById(entityId) {
         const queries = {
-            oracle: `
-        SELECT x.id,
-               x.props
-        FROM TABLE(
-          GRAPH_TABLE(
-            knowledge_graph,
-            MATCH (v)
-              WHERE v.vertex_type = 'PERSON'
-                AND v.vertex_id = :id
-            COLUMNS (
-              v.vertex_id   AS id,
-              v.properties  AS props
-            )
-          )
-        ) x
-      `,
-            memgraph: `
-        MATCH (p:Person {id: $id})
-        RETURN p
-      `
+            oracle: `SELECT id(p) as vertex_id,
+                            p.name,
+                            p.birth_date,
+                            p.death_date,
+                            p.gender,
+                            p.description
+                     FROM MATCH (p:PERSON) ON ${this.defaultGraph}
+                     WHERE p.id = '${entityId}'`,
+            memgraph: `MATCH (p:person {id: $entityId})
+                      RETURN id(p) as vertex_id,
+                             p.id as entity_id,
+                             p.name,
+                             p.birth_date,
+                             p.death_date,
+                             p.gender,
+                             p.description`
         };
 
-        const result = await this.execute(queries, { id });
-        if (this.dbType === 'oracle' && result.rows?.length) {
-            const [idVal, props] = result.rows[0];
-            return { id: idVal, ...JSON.parse(props) };
-        }
-        return result?.[0] || null;
+        const result = await this.execute(queries, { entityId });
+        return Array.isArray(result) ? result[0] : result;
     }
 
     // Beziehungen einer Person abrufen
-    async getRelationships(personId) {
+    async getRelationships(entityId) {
         const queries = {
-            oracle: `
-        SELECT r.relationship_type,
-               r.target_id,
-               r.target_type,
-               r.target_props
-        FROM TABLE(
-          GRAPH_TABLE(
-            knowledge_graph,
-            MATCH (s)-[e]->(t)
-              WHERE s.vertex_type = 'PERSON'
-                AND s.vertex_id = :personId
-            COLUMNS (
-              e.edge_label      AS relationship_type,
-              t.vertex_id       AS target_id,
-              t.vertex_type     AS target_type,
-              t.properties      AS target_props
-            )
-          )
-        ) r
-      `,
-            memgraph: `
-        MATCH (p:Person {id: $personId})-[r]->(t)
-        RETURN
-          type(r)       AS relationship_type,
-          id(t)         AS target_id,
-          labels(t)[0]  AS target_type,
-          t             AS node
-      `
+            oracle: `SELECT label(e) as relationship_type,
+                            id(target) as target_vertex_id,
+                            label(target) as target_type,
+                            target.name as target_name
+                     FROM MATCH (p:PERSON)-[e]->(target) ON ${this.defaultGraph}
+                     WHERE p.id = '${entityId}'`,
+            memgraph: `MATCH (p:person {id: $entityId})-[e]->(target)
+                      RETURN type(e) as relationship_type,
+                             id(target) as target_vertex_id,
+                             labels(target)[0] as target_type,
+                             target.name as target_name,
+                             target.id as target_entity_id`
         };
 
-        const result = await this.execute(queries, { personId });
-        if (this.dbType === 'oracle') {
-            return result.rows.map(([rt, id, tp, props]) => ({
-                relationship_type: rt,
-                target: { id, type: tp, ...JSON.parse(props) }
-            }));
-        }
-        return result.map(({ relationship_type, target_type, node }) => ({
-            relationship_type,
-            target: { id: node.properties.id, type: target_type, ...node.properties }
-        }));
+        return await this.execute(queries, { entityId });
+    }
+
+    // Personen nach Namen suchen
+    async searchByName(searchTerm, limit = 20) {
+        const queries = {
+            oracle: `SELECT id(p) as vertex_id,
+                            p.name,
+                            p.description
+                     FROM MATCH (p:PERSON) ON ${this.defaultGraph}
+                     WHERE UPPER(p.name) LIKE UPPER('%${searchTerm}%')
+                         LIMIT ${limit}`,
+            memgraph: `MATCH (p:person)
+                      WHERE toUpper(p.name) CONTAINS toUpper($searchTerm)
+                      RETURN id(p) as vertex_id,
+                             p.id as entity_id,
+                             p.name,
+                             p.description
+                      LIMIT $limit`
+        };
+
+        return await this.execute(queries, { searchTerm, limit: parseInt(limit) });
+    }
+
+    // Simple Stats
+    async getPersonStats() {
+        const queries = {
+            oracle: `SELECT COUNT(*) as total_persons
+                     FROM MATCH (p:PERSON) ON ${this.defaultGraph}`,
+            memgraph: `MATCH (p:person)
+                      RETURN COUNT(p) as total_persons`
+        };
+
+        const result = await this.execute(queries);
+        return Array.isArray(result) ? result[0] : result;
     }
 }
 

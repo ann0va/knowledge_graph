@@ -1,8 +1,8 @@
-﻿// Oracle Graph REST API v2 Client - EXAKT nach Spezifikation
+﻿// Oracle Graph REST API Client
 const axios = require('axios');
 require('dotenv').config();
 
-class OracleGraphRESTv2Client {
+class OracleGraphRESTClient {
     constructor() {
         this.baseUrl = process.env.PGX_URL || 'https://c017-node3.infcs.de:7007';
         this.username = process.env.PGX_USER || 'team25s5';
@@ -15,7 +15,7 @@ class OracleGraphRESTv2Client {
         });
     }
 
-    // Authentication Token holen - EXAKT nach API v2
+    // Authentication Token holen - API v2!
     async authenticate() {
         try {
             console.log('🔐 Getting authentication token...');
@@ -270,7 +270,7 @@ class OracleGraphRESTv2Client {
 async function testOracleGraphAPI() {
     console.log('🚀 Oracle Graph REST API v2 Test\n');
 
-    const client = new OracleGraphRESTv2Client();
+    const client = new OracleGraphRESTClient();
 
     try {
         // 1. Authentifizieren
@@ -291,11 +291,11 @@ async function testOracleGraphAPI() {
         const graphs = await client.getGraphs('PGQL_IN_DATABASE');
         console.table(graphs);
 
-        // 5. PGQL Queries testen - FIXED
+        // 5. PGQL Queries testen
         const testQueries = [
-            "SELECT COUNT(*) as total_count FROM MATCH (n) ON WORKED_AT_GRAPH",
-            "SELECT n.name FROM MATCH (n:Person) ON WORKED_AT_GRAPH LIMIT 5",
-            "SELECT p.name as person_name, w.name as workplace_name FROM MATCH (p:Person) -[:WORKED_AT]-> (w:Workplace) ON WORKED_AT_GRAPH LIMIT 3"
+            "SELECT COUNT(*) as total_count FROM MATCH (n) ON ALL_GRAPH",
+            "SELECT n.name FROM MATCH (n:Person) ON ALL_GRAPH LIMIT 5",
+            "SELECT p.name as person_name, w.name as workplace_name FROM MATCH (p:Person) -[:WORKED_AT]-> (w:Workplace) ON ALL_GRAPH LIMIT 3"
         ];
 
         for (const query of testQueries) {
@@ -329,7 +329,7 @@ let graphClient = null;
 
 async function ensureClient() {
     if (!graphClient) {
-        graphClient = new OracleGraphRESTv2Client();
+        graphClient = new OracleGraphRESTClient();
         await graphClient.authenticate();
     }
     return graphClient;
@@ -369,8 +369,8 @@ app.get('/api/visualization', async (req, res) => {
 
         // Sample query für Visualization - FIXED
         const result = await client.runPGQLQuery([
-            "SELECT * FROM MATCH (v) ON WORKED_AT_GRAPH LIMIT 50",
-            "SELECT * FROM MATCH (v1) -[e]-> (v2) ON WORKED_AT_GRAPH LIMIT 50"
+            "SELECT * FROM MATCH (v) ON ALL_GRAPH LIMIT 50",
+            "SELECT * FROM MATCH (v1) -[e]-> (v2) ON ALL_GRAPH LIMIT 50"
         ], driver);
 
         const vizData = client.extractVisualizationData(result);
@@ -388,8 +388,8 @@ app.get('/api/visualization/:driver', async (req, res) => {
 
         // Sample query für Visualization - FIXED
         const result = await client.runPGQLQuery([
-            "SELECT * FROM MATCH (v) ON WORKED_AT_GRAPH LIMIT 50",
-            "SELECT * FROM MATCH (v1) -[e]-> (v2) ON WORKED_AT_GRAPH LIMIT 50"
+            "SELECT * FROM MATCH (v) ON ALL_GRAPH LIMIT 50",
+            "SELECT * FROM MATCH (v1) -[e]-> (v2) ON ALL_GRAPH LIMIT 50"
         ], driver);
 
         const vizData = client.extractVisualizationData(result);
@@ -400,7 +400,7 @@ app.get('/api/visualization/:driver', async (req, res) => {
     }
 });
 
-module.exports = { OracleGraphRESTv2Client };
+module.exports = { OracleGraphRESTClient: OracleGraphRESTClient };
 
 // Test ausführen
 if (require.main === module) {
