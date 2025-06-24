@@ -43,7 +43,7 @@ class PersonRepository extends BaseRepository {
                             p.gender,
                             p.description
                      FROM MATCH (p:PERSON) ON ${this.defaultGraph}
-                     WHERE p.id = '${entityId}'`,
+                     WHERE id(p) = '${entityId}'`,
             memgraph: `MATCH (p:person {id: $entityId})
                       RETURN id(p) as vertex_id,
                              p.id as entity_id,

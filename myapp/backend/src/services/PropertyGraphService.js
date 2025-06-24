@@ -238,9 +238,12 @@ class PropertyGraphService {
         }
     }
 
-    // Graph Statistiken
+    // Graph Statistiken - Fixed für Token Management und Parsing
     async getGraphStats(graphName) {
         console.log(`📊 Getting statistics for: ${graphName}`);
+
+        // Fresh authentication
+        await this.authenticate();
 
         const statsQueries = [
             {
@@ -248,28 +251,12 @@ class PropertyGraphService {
                 query: `SELECT COUNT(*) as total_nodes FROM MATCH (n) ON ${graphName}`
             },
             {
-                name: 'Total Edges',
-                query: `SELECT COUNT(*) as total_edges FROM MATCH () -[e]-> () ON ${graphName}`
-            },
-            {
                 name: 'Person Nodes',
-                query: `SELECT COUNT(*) as person_count FROM MATCH (n:Person) ON ${graphName}`
+                query: `SELECT COUNT(*) as person_count FROM MATCH (n:PERSON) ON ${graphName}`
             },
             {
                 name: 'Award Nodes',
-                query: `SELECT COUNT(*) as award_count FROM MATCH (n:Award) ON ${graphName}`
-            },
-            {
-                name: 'Field Nodes',
-                query: `SELECT COUNT(*) as field_count FROM MATCH (n:Field) ON ${graphName}`
-            },
-            {
-                name: 'Workplace Nodes',
-                query: `SELECT COUNT(*) as workplace_count FROM MATCH (n:Workplace) ON ${graphName}`
-            },
-            {
-                name: 'Work Nodes',
-                query: `SELECT COUNT(*) as work_count FROM MATCH (n:Work) ON ${graphName}`
+                query: `SELECT COUNT(*) as award_count FROM MATCH (n:AWARD) ON ${graphName}`
             }
         ];
 
@@ -277,17 +264,48 @@ class PropertyGraphService {
 
         for (const stat of statsQueries) {
             try {
+                // Fresh auth vor jeder Query
+                await this.authenticate();
+
                 const result = await this.client.runPGQLQuery(stat.query);
                 if (result?.results?.[0]?.success) {
-                    const data = JSON.parse(result.results[0].result);
-                    const value = Object.values(data.table ? JSON.parse(data.table) : data)[0];
-                    stats[stat.name] = value || 0;
+                    const rawResult = result.results[0].result;
+                    console.log(`Debug ${stat.name} raw result:`, rawResult.substring(0, 100));
+
+                    // Try different parsing approaches
+                    try {
+                        const data = JSON.parse(rawResult);
+
+                        if (data.table) {
+                            // Table format - parse table
+                            const lines = data.table.split('\n').filter(line => line.trim());
+                            if (lines.length > 1) {
+                                const valueRow = lines[1].split('\t');
+                                stats[stat.name] = valueRow[0] || '0';
+                            } else {
+                                stats[stat.name] = '0';
+                            }
+                        } else {
+                            // Direct value
+                            const value = Object.values(data)[0];
+                            stats[stat.name] = value || '0';
+                        }
+                    } catch (parseError) {
+                        // If JSON parsing fails, maybe it's plain text
+                        console.log(`Parse error for ${stat.name}:`, parseError.message);
+
+                        // Try to extract number from raw string
+                        const numberMatch = rawResult.match(/\d+/);
+                        stats[stat.name] = numberMatch ? numberMatch[0] : 'Parse Error';
+                    }
+
                     console.log(`  ${stat.name}: ${stats[stat.name]}`);
                 } else {
-                    stats[stat.name] = 'Error';
+                    stats[stat.name] = 'Query Failed: ' + (result?.results?.[0]?.error || 'Unknown');
                 }
             } catch (e) {
-                stats[stat.name] = 'Parse Error';
+                stats[stat.name] = 'Auth Error: ' + e.message;
+                console.error(`Error getting ${stat.name}:`, e.message);
             }
         }
 
@@ -301,11 +319,11 @@ class PropertyGraphService {
         console.log(`🎨 Getting visualization data for: ${graphName}`);
 
         try {
-            const nodeQuery = `SELECT n.id, label(n) as node_type, n.name 
-                              FROM MATCH (n) ON ${graphName} LIMIT ${nodeLimit}`;
+            const nodeQuery = `SELECT n.id, label(n) as node_type, n.name
+                               FROM MATCH (n) ON ${graphName} LIMIT ${nodeLimit}`;
 
             const edgeQuery = `SELECT id(src) as source, id(dst) as target, label(e) as edge_type
-                              FROM MATCH (src) -[e]-> (dst) ON ${graphName} LIMIT ${edgeLimit}`;
+                               FROM MATCH (src) -[e]-> (dst) ON ${graphName} LIMIT ${edgeLimit}`;
 
             const [nodeResult, edgeResult] = await Promise.all([
                 this.client.runPGQLQuery(nodeQuery),
@@ -336,12 +354,12 @@ class PropertyGraphService {
             },
             {
                 name: 'Person-Workplace Connections',
-                query: `SELECT p.name as person, w.name as workplace 
+                query: `SELECT p.name as person, w.name as workplace
                         FROM MATCH (p:Person) -[:WORKED_AT]-> (w:Workplace) ON ${graphName} LIMIT 5`
             },
             {
                 name: 'Person-Award Connections',
-                query: `SELECT p.name as person, a.name as award 
+                query: `SELECT p.name as person, a.name as award
                         FROM MATCH (p:Person) -[:RECEIVED]-> (a:Award) ON ${graphName} LIMIT 5`
             }
         ];
