@@ -6,20 +6,7 @@
   "scripts": {
     "start": "node index.js",
     "dev": "nodemon index.js",
-    "test:connections": "node test-connections.js",
-    "test:api": "node test-api.js",
-    "test:all": "npm run test:connections && npm run start & sleep 3 && npm run test:api",
-    "data:export": "node data-explorer.js",
-    "data:show": "node test-connections.js",
-    "oracle:diagnose": "node oracle-diagnosis.js",
-    "oracle:property-graph-import": "node oracle-property-graph-import-fixed.js",
-    "oracle:debug": "node oracle-graph-debug.js",
-    "oracle:detect": "node oracle-table-detector.js",
-    "oracle:test-pgq": "node test-sql-pgq.js",
-    "pgx:status": "node pgx-status.js",
-    "pgx:convert": "node memgraph-to-pgx-json.js",
-    "pgx:create": "node pgx-create-graph.js",
-    "pgx:test": "node test-pgx.js"
+    "data:export": "node data-explorer.js"
   },
   "dependencies": {
     "axios": "^1.10.0",
