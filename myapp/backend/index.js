@@ -90,7 +90,7 @@ async function initializeServer() {
 
 // Routes einrichten
 function setupRoutes() {
-    // Health Check - Erweitert mit Property Graph Status
+    // Health Check - Erweitert für EntityRepository
     app.get('/api/health', async (req, res) => {
         try {
             const health = {
@@ -101,30 +101,35 @@ function setupRoutes() {
                     oracle: false,
                     memgraph: false,
                     propertyGraph: false
-                }
+                },
+                entityRepositories: {},
+                availableEntityTypes: repositoryFactory.getAvailableEntityTypes(),
+                availableRelationshipTypes: repositoryFactory.getAvailableRelationshipTypes()
             };
 
-            // Oracle Check
+            // Oracle Check mit EntityRepository
             try {
                 const oracleRepo = repositoryFactory.getRepository('person', 'oracle');
-                await oracleRepo.findAll(1);
+                const result = await oracleRepo.findAll(1);
                 health.databases.oracle = true;
+                health.databases.oracleTestResult = result.length;
             } catch (e) {
                 console.error('Oracle health check failed:', e.message);
                 health.databases.oracleError = e.message;
             }
 
-            // Memgraph Check
+            // Memgraph Check mit EntityRepository
             try {
                 const memgraphRepo = repositoryFactory.getRepository('person', 'memgraph');
-                await memgraphRepo.findAll(1);
+                const result = await memgraphRepo.findAll(1);
                 health.databases.memgraph = true;
+                health.databases.memgraphTestResult = result.length;
             } catch (e) {
                 console.error('Memgraph health check failed:', e.message);
                 health.databases.memgraphError = e.message;
             }
 
-            // Property Graph Check
+            // Property Graph Check (unverändert)
             try {
                 const PropertyGraphService = require('./src/services/PropertyGraphService');
                 const pgService = new PropertyGraphService();
@@ -137,6 +142,15 @@ function setupRoutes() {
                 health.databases.propertyGraphError = e.message;
             }
 
+            // Alle Entity-Repositories testen (optional, nur wenn gewünscht)
+            if (req.query.detailed === 'true') {
+                try {
+                    health.entityRepositories = await repositoryFactory.healthCheckAll();
+                } catch (e) {
+                    health.entityRepositoriesError = e.message;
+                }
+            }
+
             res.json(health);
         } catch (error) {
             res.status(500).json({
@@ -146,10 +160,13 @@ function setupRoutes() {
         }
     });
 
-    // === PROPERTY GRAPH ROUTES ===
+    // === NEUE UNIVERSAL ENTITY ROUTE ===
+    app.use('/api/entity', require('./src/routes/entity')(repositoryFactory));
+
+    // === PROPERTY GRAPH ROUTES (unverändert) ===
     app.use('/api/graph', require('./src/routes/graph')(repositoryFactory));
 
-    // === ENTITY ROUTES (bestehende) ===
+    // === LEGACY ENTITY ROUTES (können bleiben für Backwards Compatibility) ===
     app.use('/api/person', require('./src/routes/person')(repositoryFactory));
     app.use('/api/place', require('./src/routes/place')(repositoryFactory));
     app.use('/api/work', require('./src/routes/work')(repositoryFactory));

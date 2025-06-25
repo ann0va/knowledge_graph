@@ -1,11 +1,12 @@
 import React from 'react';
 import './App.css';
 import HealthCheck from './components/HealthCheck';
+import DataViewer from './components/DataViewer';
 
 function App() {
   return (
       <div className="min-h-screen bg-gray-100 p-4">
-        <div className="max-w-6xl mx-auto">
+        <div className="max-w-7xl mx-auto">
           <header className="mb-6">
             <h1 className="text-3xl font-bold text-gray-900">
               🔍 Knowledge Graph Explorer
@@ -15,29 +16,18 @@ function App() {
             </p>
           </header>
 
-          <main>
-            <div className="mb-6">
+          <main className="space-y-8">
+            {/* Backend Health Check */}
+            <section>
               <h2 className="text-xl font-semibold mb-4">🔗 Backend Verbindung</h2>
               <HealthCheck />
-            </div>
+            </section>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Oracle Results */}
-              <div className="database-result oracle">
-                <h3 className="font-bold text-red-800 mb-2">🔴 Oracle Database</h3>
-                <div className="text-sm text-gray-600">
-                  Oracle PGQL Ergebnisse werden hier angezeigt...
-                </div>
-              </div>
-
-              {/* Memgraph Results */}
-              <div className="database-result memgraph">
-                <h3 className="font-bold text-blue-800 mb-2">🔵 Memgraph Database</h3>
-                <div className="text-sm text-gray-600">
-                  Memgraph Cypher Ergebnisse werden hier angezeigt...
-                </div>
-              </div>
-            </div>
+            {/* Data Viewer */}
+            <section>
+              <h2 className="text-xl font-semibold mb-4">📊 Datenbank Inhalt</h2>
+              <DataViewer />
+            </section>
           </main>
         </div>
       </div>

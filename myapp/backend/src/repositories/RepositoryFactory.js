@@ -1,4 +1,4 @@
-﻿// src/repositories/index.js - NEUE VERSION mit EntityRepository
+﻿// src/repositories/RepositoryFactory.js - Neue schlanke Version
 const EntityRepository = require('./EntityRepository');
 
 class RepositoryFactory {
@@ -8,7 +8,7 @@ class RepositoryFactory {
         this.repositories = new Map();
     }
 
-    // 🎯 MAIN: Repository für Entity-Type abrufen (NEUE METHODE)
+    // 🎯 MAIN: Repository für Entity-Type abrufen
     getRepository(entityType, dbType = 'memgraph') {
         // Validierung
         if (!EntityRepository.getAvailableEntityTypes().includes(entityType)) {
@@ -50,11 +50,6 @@ class RepositoryFactory {
     // 🎯 UTILITY: Entity-Konfiguration abrufen
     getEntityConfig(entityType) {
         return EntityRepository.getEntityConfig(entityType);
-    }
-
-    // 🎯 UTILITY: Alle verfügbaren Relationship-Typen
-    getAvailableRelationshipTypes() {
-        return EntityRepository.getAvailableRelationshipTypes();
     }
 
     // 🎯 CLEANUP: Alle Repositories schließen
