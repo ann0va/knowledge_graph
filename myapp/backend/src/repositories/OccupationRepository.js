@@ -1,139 +1,103 @@
-﻿// src/repositories/OccupationRepository.js
+﻿// src/repositories/OccupationRepository.js - PGQL/Cypher Fixed
 const BaseRepository = require('./BaseRepository');
 
 class OccupationRepository extends BaseRepository {
     constructor(db, dbType) {
         super(db, dbType);
+        this.defaultGraph = 'ALL_GRAPH';
     }
 
     // Alle Berufe abrufen
     async findAll(limit = 100) {
         const queries = {
-            oracle: `
-        SELECT v.vertex_id as id, v.properties
-        FROM GRAPH_TABLE (knowledge_graph
-          MATCH (v)
-          WHERE v.vertex_type = 'OCCUPATION'
-          COLUMNS (v.vertex_id, v.properties)
-        )
-        FETCH FIRST ${limit} ROWS ONLY
-      `,
-            memgraph: `
-        MATCH (o:Occupation) 
-        RETURN o 
-        LIMIT ${limit}
-      `
+            oracle: `SELECT id(o) as vertex_id, o.name FROM MATCH (o:OCCUPATION) ON ALL_GRAPH LIMIT ${limit}`,
+            memgraph: `MATCH (o:occupation) RETURN id(o) as vertex_id, o.name LIMIT $limit`
         };
+        // const queries = {
+        //     oracle: `SELECT id(o) as vertex_id,
+        //                     o.name,
+        //                     o.description,
+        //                     o.category
+        //              FROM MATCH (o:OCCUPATION) ON ${this.defaultGraph}
+        //              LIMIT ${limit}`,
+        //     memgraph: `MATCH (o:occupation)
+        //               RETURN id(o) as vertex_id,
+        //                      o.id as entity_id,
+        //                      o.name,
+        //                      o.description,
+        //                      o.category
+        //               LIMIT $limit`
+        // };
 
-        const result = await this.execute(queries);
-
-        if (this.dbType === 'oracle' && result.rows) {
-            return result.rows.map(row => {
-                const props = JSON.parse(row[1]);
-                return {
-                    id: row[0],
-                    ...props
-                };
-            });
-        }
-
-        return result;
+        return await this.execute(queries, { limit });
     }
 
     // Beruf nach ID suchen
-    async findById(id) {
+    async findById(entityId) {
         const queries = {
-            oracle: `
-        SELECT v.vertex_id as id, v.properties
-        FROM GRAPH_TABLE (knowledge_graph
-          MATCH (v)
-          WHERE v.vertex_type = 'OCCUPATION' 
-            AND v.vertex_id = :id
-          COLUMNS (v.vertex_id, v.properties)
-        )
-      `,
-            memgraph: `
-        MATCH (o:Occupation {id: $id}) 
-        RETURN o
-      `
+            oracle: `SELECT id(o) as vertex_id,
+                            o.name,
+                            o.description,
+                            o.category
+                     FROM MATCH (o:OCCUPATION) ON ${this.defaultGraph}
+                     WHERE id(o) = '${entityId}'`,
+            memgraph: `MATCH (o:occupation {id: $entityId})
+                      RETURN id(o) as vertex_id,
+                             o.id as entity_id,
+                             o.name,
+                             o.description,
+                             o.category`
         };
 
-        const params = this.dbType === 'oracle' ? { id } : { id };
-        const result = await this.execute(queries, params);
-
-        if (this.dbType === 'oracle' && result.rows && result.rows.length > 0) {
-            const props = JSON.parse(result.rows[0][1]);
-            return {
-                id: result.rows[0][0],
-                ...props
-            };
-        }
-
-        return result?.[0] || null;
+        const result = await this.execute(queries, { entityId });
+        return Array.isArray(result) ? result[0] : result;
     }
 
     // Personen mit diesem Beruf finden
     async getPeopleWithOccupation(occupationId) {
         const queries = {
-            oracle: `
-        SELECT 
-          s.vertex_id as person_id,
-          s.properties as person_properties
-        FROM GRAPH_TABLE (knowledge_graph
-          MATCH (s)-[e]->(t)
-          WHERE t.vertex_type = 'OCCUPATION' 
-            AND t.vertex_id = :occupationId
-            AND e.edge_label = 'HAS_OCCUPATION'
-          COLUMNS (s.vertex_id, s.properties)
-        )
-      `,
-            memgraph: `
-        MATCH (person:Person)-[:HAS_OCCUPATION]->(occupation:Occupation {id: $occupationId})
-        RETURN person
-      `
+            oracle: `SELECT id(person) as vertex_id,
+                            person.name,
+                            person.birth_date,
+                            person.death_date,
+                            person.gender,
+                            person.description
+                     FROM MATCH (person:PERSON)-[:HAS_OCCUPATION]->(occupation:OCCUPATION) ON ${this.defaultGraph}
+                     WHERE id(occupation) = '${occupationId}'`,
+            memgraph: `MATCH (person:person)-[:HAS_OCCUPATION]->(occupation:occupation {id: $occupationId})
+                      RETURN id(person) as vertex_id,
+                             person.id as entity_id,
+                             person.name,
+                             person.birth_date,
+                             person.death_date,
+                             person.gender,
+                             person.description`
         };
 
-        const params = this.dbType === 'oracle' ? { occupationId } : { occupationId };
-        const result = await this.execute(queries, params);
-
-        if (this.dbType === 'oracle' && result.rows) {
-            return result.rows.map(row => {
-                const props = JSON.parse(row[1]);
-                return {
-                    id: row[0],
-                    ...props
-                };
-            });
-        }
-
-        return result;
+        return await this.execute(queries, { occupationId });
     }
 
-    // Neuen Beruf erstellen
-    async create(occupationData) {
-        const id = occupationData.id || `occupation_${Date.now()}`;
-        const properties = {
-            id,
-            name: occupationData.name
-        };
-
+    // Search occupations by name
+    async searchByName(searchTerm, limit = 10) {
         const queries = {
-            oracle: `
-        INSERT INTO kg_vertices (vertex_id, vertex_type, properties)
-        VALUES (:id, 'OCCUPATION', :props)
-      `,
-            memgraph: `
-        CREATE (o:Occupation $props)
-        RETURN o
-      `
+            oracle: `SELECT id(o) as vertex_id,
+                            o.name,
+                            o.description,
+                            o.category
+                     FROM MATCH (o:OCCUPATION) ON ${this.defaultGraph}
+                     WHERE UPPER(o.name) CONTAINS UPPER('${searchTerm}')
+                     LIMIT ${limit}`,
+            memgraph: `MATCH (o:occupation)
+                      WHERE toUpper(o.name) CONTAINS toUpper($searchTerm)
+                      RETURN id(o) as vertex_id,
+                             o.id as entity_id,
+                             o.name,
+                             o.description,
+                             o.category
+                      LIMIT $limit`
         };
 
-        const params = this.dbType === 'oracle'
-            ? { id, props: JSON.stringify(properties) }
-            : { props: properties };
-
-        await this.execute(queries, params);
-        return properties;
+        return await this.execute(queries, { searchTerm, limit });
     }
 }
 

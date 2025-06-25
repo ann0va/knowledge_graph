@@ -1,139 +1,102 @@
-﻿// src/repositories/AwardRepository.js
+﻿// src/repositories/AwardRepository.js - PGQL/Cypher Fixed
 const BaseRepository = require('./BaseRepository');
 
 class AwardRepository extends BaseRepository {
     constructor(db, dbType) {
         super(db, dbType);
+        this.defaultGraph = 'ALL_GRAPH';
     }
 
     // Alle Auszeichnungen abrufen
     async findAll(limit = 100) {
         const queries = {
-            oracle: `
-        SELECT v.vertex_id as id, v.properties
-        FROM GRAPH_TABLE (knowledge_graph
-          MATCH (v)
-          WHERE v.vertex_type = 'AWARD'
-          COLUMNS (v.vertex_id, v.properties)
-        )
-        FETCH FIRST ${limit} ROWS ONLY
-      `,
-            memgraph: `
-        MATCH (a:Award) 
-        RETURN a 
-        LIMIT ${limit}
-      `
+            oracle: `SELECT id(a) as vertex_id, a.name FROM MATCH (a:AWARD) ON ALL_GRAPH LIMIT ${limit}`,
+            memgraph: `MATCH (a:award) RETURN id(a) as vertex_id, a.name LIMIT $limit`
         };
-
-        const result = await this.execute(queries);
-
-        if (this.dbType === 'oracle' && result.rows) {
-            return result.rows.map(row => {
-                const props = JSON.parse(row[1]);
-                return {
-                    id: row[0],
-                    ...props
-                };
-            });
-        }
-
-        return result;
+        return await this.execute(queries, { limit });
+        // const queries = {
+        //     oracle: `SELECT id(a) as vertex_id,
+        //                     a.name,
+        //                     a.description,
+        //                     a.year
+        //              FROM MATCH (a:AWARD) ON ${this.defaultGraph}
+        //              LIMIT ${limit}`,
+        //     memgraph: `MATCH (a:award)
+        //               RETURN id(a) as vertex_id,
+        //                      a.id as entity_id,
+        //                      a.name,
+        //                      a.description,
+        //                      a.year
+        //               LIMIT $limit`
+        // };
+        //
+        // return await this.execute(queries, { limit });
     }
 
     // Auszeichnung nach ID suchen
-    async findById(id) {
+    async findById(entityId) {
         const queries = {
-            oracle: `
-        SELECT v.vertex_id as id, v.properties
-        FROM GRAPH_TABLE (knowledge_graph
-          MATCH (v)
-          WHERE v.vertex_type = 'AWARD' 
-            AND v.vertex_id = :id
-          COLUMNS (v.vertex_id, v.properties)
-        )
-      `,
-            memgraph: `
-        MATCH (a:Award {id: $id}) 
-        RETURN a
-      `
+            oracle: `SELECT id(a) as vertex_id,
+                            a.name,
+                            a.description,
+                            a.year
+                     FROM MATCH (a:AWARD) ON ${this.defaultGraph}
+                     WHERE id(a) = '${entityId}'`,
+            memgraph: `MATCH (a:award {id: $entityId})
+                      RETURN id(a) as vertex_id,
+                             a.id as entity_id,
+                             a.name,
+                             a.description,
+                             a.year`
         };
 
-        const params = this.dbType === 'oracle' ? { id } : { id };
-        const result = await this.execute(queries, params);
-
-        if (this.dbType === 'oracle' && result.rows && result.rows.length > 0) {
-            const props = JSON.parse(result.rows[0][1]);
-            return {
-                id: result.rows[0][0],
-                ...props
-            };
-        }
-
-        return result?.[0] || null;
+        const result = await this.execute(queries, { entityId });
+        return Array.isArray(result) ? result[0] : result;
     }
 
     // Empfänger einer Auszeichnung finden
     async getRecipients(awardId) {
         const queries = {
-            oracle: `
-        SELECT 
-          s.vertex_id as recipient_id,
-          s.properties as recipient_properties
-        FROM GRAPH_TABLE (knowledge_graph
-          MATCH (s)-[e]->(t)
-          WHERE t.vertex_type = 'AWARD' 
-            AND t.vertex_id = :awardId
-            AND e.edge_label = 'RECEIVED'
-          COLUMNS (s.vertex_id, s.properties)
-        )
-      `,
-            memgraph: `
-        MATCH (recipient:Person)-[:RECEIVED]->(award:Award {id: $awardId})
-        RETURN recipient
-      `
+            oracle: `SELECT id(p) as vertex_id,
+                            p.name,
+                            p.birth_date,
+                            p.death_date,
+                            p.gender
+                     FROM MATCH (p:PERSON)-[:RECEIVED]->(a:AWARD) ON ${this.defaultGraph}
+                     WHERE id(a) = '${awardId}'`,
+            memgraph: `MATCH (p:person)-[:RECEIVED]->(a:award {id: $awardId})
+                      RETURN id(p) as vertex_id,
+                             p.id as entity_id,
+                             p.name,
+                             p.birth_date,
+                             p.death_date,
+                             p.gender`
         };
 
-        const params = this.dbType === 'oracle' ? { awardId } : { awardId };
-        const result = await this.execute(queries, params);
-
-        if (this.dbType === 'oracle' && result.rows) {
-            return result.rows.map(row => {
-                const props = JSON.parse(row[1]);
-                return {
-                    id: row[0],
-                    ...props
-                };
-            });
-        }
-
-        return result;
+        return await this.execute(queries, { awardId });
     }
 
-    // Neue Auszeichnung erstellen
-    async create(awardData) {
-        const id = awardData.id || `award_${Date.now()}`;
-        const properties = {
-            id,
-            name: awardData.name
-        };
-
+    // Search awards by name
+    async searchByName(searchTerm, limit = 10) {
         const queries = {
-            oracle: `
-        INSERT INTO kg_vertices (vertex_id, vertex_type, properties)
-        VALUES (:id, 'AWARD', :props)
-      `,
-            memgraph: `
-        CREATE (a:Award $props)
-        RETURN a
-      `
+            oracle: `SELECT id(a) as vertex_id,
+                            a.name,
+                            a.description,
+                            a.year
+                     FROM MATCH (a:AWARD) ON ${this.defaultGraph}
+                     WHERE UPPER(a.name) CONTAINS UPPER('${searchTerm}')
+                     LIMIT ${limit}`,
+            memgraph: `MATCH (a:award)
+                      WHERE toUpper(a.name) CONTAINS toUpper($searchTerm)
+                      RETURN id(a) as vertex_id,
+                             a.id as entity_id,
+                             a.name,
+                             a.description,
+                             a.year
+                      LIMIT $limit`
         };
 
-        const params = this.dbType === 'oracle'
-            ? { id, props: JSON.stringify(properties) }
-            : { props: properties };
-
-        await this.execute(queries, params);
-        return properties;
+        return await this.execute(queries, { searchTerm, limit });
     }
 }
 

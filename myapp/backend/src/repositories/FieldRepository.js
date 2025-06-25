@@ -1,139 +1,97 @@
-﻿// src/repositories/FieldRepository.js
+﻿// src/repositories/FieldRepository.js - PGQL/Cypher Fixed
 const BaseRepository = require('./BaseRepository');
 
 class FieldRepository extends BaseRepository {
     constructor(db, dbType) {
         super(db, dbType);
+        this.defaultGraph = 'ALL_GRAPH';
     }
 
     // Alle Fachgebiete abrufen
     async findAll(limit = 100) {
         const queries = {
-            oracle: `
-        SELECT v.vertex_id as id, v.properties
-        FROM GRAPH_TABLE (knowledge_graph
-          MATCH (v)
-          WHERE v.vertex_type = 'FIELD'
-          COLUMNS (v.vertex_id, v.properties)
-        )
-        FETCH FIRST ${limit} ROWS ONLY
-      `,
-            memgraph: `
-        MATCH (f:Field) 
-        RETURN f 
-        LIMIT ${limit}
-      `
+            oracle: `SELECT id(f) as vertex_id, f.name FROM MATCH (f:FIELD) ON ALL_GRAPH LIMIT ${limit}`,
+            memgraph: `MATCH (f:field) RETURN id(f) as vertex_id, f.name LIMIT $limit`
         };
+        // const queries = {
+        //     oracle: `SELECT id(f) as vertex_id,
+        //                     f.name,
+        //                     f.description
+        //              FROM MATCH (f:FIELD) ON ${this.defaultGraph}
+        //              LIMIT ${limit}`,
+        //     memgraph: `MATCH (f:field)
+        //               RETURN id(f) as vertex_id,
+        //                      f.id as entity_id,
+        //                      f.name,
+        //                      f.description
+        //               LIMIT $limit`
+        // };
 
-        const result = await this.execute(queries);
-
-        if (this.dbType === 'oracle' && result.rows) {
-            return result.rows.map(row => {
-                const props = JSON.parse(row[1]);
-                return {
-                    id: row[0],
-                    ...props
-                };
-            });
-        }
-
-        return result;
+        return await this.execute(queries, { limit });
     }
 
     // Fachgebiet nach ID suchen
-    async findById(id) {
+    async findById(entityId) {
         const queries = {
-            oracle: `
-        SELECT v.vertex_id as id, v.properties
-        FROM GRAPH_TABLE (knowledge_graph
-          MATCH (v)
-          WHERE v.vertex_type = 'FIELD' 
-            AND v.vertex_id = :id
-          COLUMNS (v.vertex_id, v.properties)
-        )
-      `,
-            memgraph: `
-        MATCH (f:Field {id: $id}) 
-        RETURN f
-      `
+            oracle: `SELECT id(f) as vertex_id,
+                            f.name,
+                            f.description
+                     FROM MATCH (f:FIELD) ON ${this.defaultGraph}
+                     WHERE id(f) = '${entityId}'`,
+            memgraph: `MATCH (f:field {id: $entityId})
+                      RETURN id(f) as vertex_id,
+                             f.id as entity_id,
+                             f.name,
+                             f.description`
         };
 
-        const params = this.dbType === 'oracle' ? { id } : { id };
-        const result = await this.execute(queries, params);
-
-        if (this.dbType === 'oracle' && result.rows && result.rows.length > 0) {
-            const props = JSON.parse(result.rows[0][1]);
-            return {
-                id: result.rows[0][0],
-                ...props
-            };
-        }
-
-        return result?.[0] || null;
+        const result = await this.execute(queries, { entityId });
+        return Array.isArray(result) ? result[0] : result;
     }
 
     // Personen die in diesem Fachgebiet arbeiten
     async getPeopleInField(fieldId) {
         const queries = {
-            oracle: `
-        SELECT 
-          s.vertex_id as person_id,
-          s.properties as person_properties
-        FROM GRAPH_TABLE (knowledge_graph
-          MATCH (s)-[e]->(t)
-          WHERE t.vertex_type = 'FIELD' 
-            AND t.vertex_id = :fieldId
-            AND e.edge_label = 'WORKS_IN'
-          COLUMNS (s.vertex_id, s.properties)
-        )
-      `,
-            memgraph: `
-        MATCH (person:Person)-[:WORKS_IN]->(field:Field {id: $fieldId})
-        RETURN person
-      `
+            oracle: `SELECT id(p) as vertex_id,
+                            p.name,
+                            p.birth_date,
+                            p.death_date,
+                            p.gender,
+                            p.description
+                     FROM MATCH (p:PERSON)-[:WORKS_IN]->(f:FIELD) ON ${this.defaultGraph}
+                     WHERE id(f) = '${fieldId}'`,
+            memgraph: `MATCH (p:person)-[:WORKS_IN]->(f:field {id: $fieldId})
+                      RETURN id(p) as vertex_id,
+                             p.id as entity_id,
+                             p.name,
+                             p.birth_date,
+                             p.death_date,
+                             p.gender,
+                             p.description`
         };
 
-        const params = this.dbType === 'oracle' ? { fieldId } : { fieldId };
-        const result = await this.execute(queries, params);
-
-        if (this.dbType === 'oracle' && result.rows) {
-            return result.rows.map(row => {
-                const props = JSON.parse(row[1]);
-                return {
-                    id: row[0],
-                    ...props
-                };
-            });
-        }
-
-        return result;
+        return await this.execute(queries, { fieldId });
     }
 
-    // Neues Fachgebiet erstellen
-    async create(fieldData) {
-        const id = fieldData.id || `field_${Date.now()}`;
-        const properties = {
-            id,
-            name: fieldData.name
-        };
-
+    // Search fields by name
+    async searchByName(searchTerm, limit = 10) {
         const queries = {
-            oracle: `
-        INSERT INTO kg_vertices (vertex_id, vertex_type, properties)
-        VALUES (:id, 'FIELD', :props)
-      `,
-            memgraph: `
-        CREATE (f:Field $props)
-        RETURN f
-      `
+            oracle: `SELECT id(f) as vertex_id,
+                            f.name,
+                            f.description
+                     FROM MATCH (f:FIELD) ON ${this.defaultGraph}
+                     WHERE UPPER(f.name) CONTAINS UPPER('${searchTerm}')
+                     LIMIT ${limit}`,
+            memgraph: `MATCH (f:field)
+                      WHERE toUpper(f.name) CONTAINS toUpper($searchTerm)
+                      RETURN id(f) as vertex_id,
+                             f.id as entity_id,
+                             f.name,
+                             f.description
+                      LIMIT $limit`
         };
 
-        const params = this.dbType === 'oracle'
-            ? { id, props: JSON.stringify(properties) }
-            : { props: properties };
-
-        await this.execute(queries, params);
-        return properties;
+        return await this.execute(queries, { searchTerm, limit });
     }
 }
 

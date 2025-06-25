@@ -1,140 +1,107 @@
-﻿// src/repositories/PlaceRepository.js
+﻿// src/repositories/PlaceRepository.js - PGQL/Cypher Fixed
 const BaseRepository = require('./BaseRepository');
 
 class PlaceRepository extends BaseRepository {
     constructor(db, dbType) {
         super(db, dbType);
+        this.defaultGraph = 'ALL_GRAPH';
     }
 
     // Alle Orte abrufen
     async findAll(limit = 100) {
         const queries = {
-            oracle: `
-        SELECT v.vertex_id as id, v.properties
-        FROM GRAPH_TABLE (knowledge_graph
-          MATCH (v)
-          WHERE v.vertex_type = 'PLACE'
-          COLUMNS (v.vertex_id, v.properties)
-        )
-        FETCH FIRST ${limit} ROWS ONLY
-      `,
-            memgraph: `
-        MATCH (p:Place) 
-        RETURN p 
-        LIMIT ${limit}
-      `
+            oracle: `SELECT id(p) as vertex_id, p.name FROM MATCH (p:PLACE) ON ALL_GRAPH LIMIT ${limit}`,
+            memgraph: `MATCH (p:place) RETURN id(p) as vertex_id, p.name LIMIT $limit`
         };
+        // const queries = {
+        //     oracle: `SELECT id(p) as vertex_id,
+        //                     p.name,
+        //                     p.type,
+        //                     p.country,
+        //                     p.coordinates
+        //              FROM MATCH (p:PLACE) ON ${this.defaultGraph}
+        //              LIMIT ${limit}`,
+        //     memgraph: `MATCH (p:place)
+        //               RETURN id(p) as vertex_id,
+        //                      p.id as entity_id,
+        //                      p.name,
+        //                      p.type,
+        //                      p.country,
+        //                      p.coordinates
+        //               LIMIT $limit`
+        // };
 
-        const result = await this.execute(queries);
-
-        if (this.dbType === 'oracle' && result.rows) {
-            return result.rows.map(row => {
-                const props = JSON.parse(row[1]);
-                return {
-                    id: row[0],
-                    ...props
-                };
-            });
-        }
-
-        return result;
+        return await this.execute(queries, { limit });
     }
 
     // Ort nach ID suchen
-    async findById(id) {
+    async findById(entityId) {
         const queries = {
-            oracle: `
-        SELECT v.vertex_id as id, v.properties
-        FROM GRAPH_TABLE (knowledge_graph
-          MATCH (v)
-          WHERE v.vertex_type = 'PLACE' 
-            AND v.vertex_id = :id
-          COLUMNS (v.vertex_id, v.properties)
-        )
-      `,
-            memgraph: `
-        MATCH (p:Place {id: $id}) 
-        RETURN p
-      `
+            oracle: `SELECT id(p) as vertex_id,
+                            p.name,
+                            p.type,
+                            p.country,
+                            p.coordinates
+                     FROM MATCH (p:PLACE) ON ${this.defaultGraph}
+                     WHERE id(p) = '${entityId}'`,
+            memgraph: `MATCH (p:place {id: $entityId})
+                      RETURN id(p) as vertex_id,
+                             p.id as entity_id,
+                             p.name,
+                             p.type,
+                             p.country,
+                             p.coordinates`
         };
 
-        const params = this.dbType === 'oracle' ? { id } : { id };
-        const result = await this.execute(queries, params);
-
-        if (this.dbType === 'oracle' && result.rows && result.rows.length > 0) {
-            const props = JSON.parse(result.rows[0][1]);
-            return {
-                id: result.rows[0][0],
-                ...props
-            };
-        }
-
-        return result?.[0] || null;
+        const result = await this.execute(queries, { entityId });
+        return Array.isArray(result) ? result[0] : result;
     }
 
     // Personen die an diesem Ort geboren wurden
     async getPeopleBornHere(placeId) {
         const queries = {
-            oracle: `
-        SELECT 
-          s.vertex_id as person_id,
-          s.properties as person_properties
-        FROM GRAPH_TABLE (knowledge_graph
-          MATCH (s)-[e]->(t)
-          WHERE t.vertex_type = 'PLACE' 
-            AND t.vertex_id = :placeId
-            AND e.edge_label = 'BIRTH_IN'
-          COLUMNS (s.vertex_id, s.properties)
-        )
-      `,
-            memgraph: `
-        MATCH (person:Person)-[:BIRTH_IN]->(place:Place {id: $placeId})
-        RETURN person
-      `
+            oracle: `SELECT id(person) as vertex_id,
+                            person.name,
+                            person.birth_date,
+                            person.death_date,
+                            person.gender,
+                            person.description
+                     FROM MATCH (person:PERSON)-[:BIRTH_IN]->(place:PLACE) ON ${this.defaultGraph}
+                     WHERE id(place) = '${placeId}'`,
+            memgraph: `MATCH (person:person)-[:BIRTH_IN]->(place:place {id: $placeId})
+                      RETURN id(person) as vertex_id,
+                             person.id as entity_id,
+                             person.name,
+                             person.birth_date,
+                             person.death_date,
+                             person.gender,
+                             person.description`
         };
 
-        const params = this.dbType === 'oracle' ? { placeId } : { placeId };
-        const result = await this.execute(queries, params);
-
-        if (this.dbType === 'oracle' && result.rows) {
-            return result.rows.map(row => {
-                const props = JSON.parse(row[1]);
-                return {
-                    id: row[0],
-                    ...props
-                };
-            });
-        }
-
-        return result;
+        return await this.execute(queries, { placeId });
     }
 
-    // Neuen Ort erstellen
-    async create(placeData) {
-        const id = placeData.id || `place_${Date.now()}`;
-        const properties = {
-            id,
-            name: placeData.name,
-            type: placeData.type || 'Place'
-        };
-
+    // Search places by name
+    async searchByName(searchTerm, limit = 10) {
         const queries = {
-            oracle: `
-        INSERT INTO kg_vertices (vertex_id, vertex_type, properties)
-        VALUES (:id, 'PLACE', :props)
-      `,
-            memgraph: `
-        CREATE (p:Place $props)
-        RETURN p
-      `
+            oracle: `SELECT id(p) as vertex_id,
+                            p.name,
+                            p.type,
+                            p.country
+                     FROM MATCH (p:PLACE) ON ${this.defaultGraph}
+                     WHERE UPPER(p.name) CONTAINS UPPER('${searchTerm}')
+                     LIMIT ${limit}`,
+            memgraph: `MATCH (p:place)
+                      WHERE toUpper(p.name) CONTAINS toUpper($searchTerm)
+                      RETURN id(p) as vertex_id,
+                             p.id as entity_id,
+                             p.name,
+                             p.type,
+                             p.country
+                      LIMIT $limit`
         };
 
-        const params = this.dbType === 'oracle'
-            ? { id, props: JSON.stringify(properties) }
-            : { props: properties };
-
-        await this.execute(queries, params);
-        return properties;
+        return await this.execute(queries, { searchTerm, limit });
     }
 }
 
