@@ -1,4 +1,4 @@
-﻿// src/services/api.js - Backend API Service (React 19 kompatibel)
+﻿// src/services/api.js - Angepasst für neue Backend Entity API
 import axios from 'axios';
 
 // Backend Base URL
@@ -21,34 +21,62 @@ class ApiService {
         return response.data;
     }
 
-    // Entity Operations - mit source parameter (oracle/memgraph/both)
+    // 🎯 NEUE: Entity Operations - angepasst für /api/entity/{type}
     async getEntities(entityType, params = {}) {
-        const { source = 'both', limit = 100, search } = params;
-        const queryParams = new URLSearchParams({ source, limit });
+        const { source = 'both', limit = 100, search, db = 'both' } = params;
 
+        // Für source=both: Beide Datenbanken einzeln abfragen
+        if (source === 'both' || db === 'both') {
+            const results = { success: true, data: { oracle: [], memgraph: [] } };
+
+            try {
+                // Oracle abfragen - NEUER PFAD!
+                const oracleResponse = await api.get(`/entity/${entityType}?db=oracle&limit=${limit}`);
+                if (oracleResponse.data.success) {
+                    results.data.oracle = oracleResponse.data.data.entities || [];
+                }
+            } catch (err) {
+                console.warn(`Oracle query failed for ${entityType}:`, err);
+            }
+
+            try {
+                // Memgraph abfragen - NEUER PFAD!
+                const memgraphResponse = await api.get(`/entity/${entityType}?db=memgraph&limit=${limit}`);
+                if (memgraphResponse.data.success) {
+                    results.data.memgraph = memgraphResponse.data.data.entities || [];
+                }
+            } catch (err) {
+                console.warn(`Memgraph query failed for ${entityType}:`, err);
+            }
+
+            return results;
+        }
+
+        // Einzelne Datenbank - NEUER PFAD!
+        const queryParams = new URLSearchParams({ db: source, limit });
         if (search) {
             queryParams.append('search', search);
         }
 
-        const response = await api.get(`/${entityType}?${queryParams}`);
+        const response = await api.get(`/entity/${entityType}?${queryParams}`);
         return response.data;
     }
 
     // Einzelne Entity abrufen
     async getEntity(entityType, id, source = 'memgraph') {
-        const response = await api.get(`/${entityType}/${id}?source=${source}`);
+        const response = await api.get(`/entity/${entityType}/${id}?db=${source}`);
         return response.data;
     }
 
     // Relationships einer Entity
     async getEntityRelationships(entityType, id, relationshipType, source = 'memgraph') {
-        const response = await api.get(`/${entityType}/${id}/${relationshipType}?source=${source}`);
+        const response = await api.get(`/entity/${entityType}/${id}/relationships?db=${source}`);
         return response.data;
     }
 
-    // Global Search
+    // Global Search (falls implementiert)
     async globalSearch(query, entityType = null, source = 'both', limit = 10) {
-        const params = new URLSearchParams({ q: query, source, limit });
+        const params = new URLSearchParams({ q: query, db: source, limit });
         if (entityType) {
             params.append('type', entityType);
         }
@@ -89,6 +117,30 @@ class ApiService {
 
     async getOccupations(params) {
         return this.getEntities('occupation', params);
+    }
+
+    // Structured Query ausführen
+    async executeStructuredQuery(queryData) {
+        const response = await api.post('/query/structured', queryData);
+        return response.data;
+    }
+
+// Entity-Namen für Autocomplete suchen  
+    async searchEntityNames(entityType, searchTerm, db = 'memgraph') {
+        const response = await api.get(`/query/entities/search`, {
+            params: { type: entityType, q: searchTerm, db, limit: 10 }
+        });
+        return response.data;
+    }
+
+// Raw Query ausführen (falls später benötigt)
+    async executeRawQuery(database, query, params = {}) {
+        const response = await api.post('/query', {
+            source: database,
+            query,
+            params
+        });
+        return response.data;
     }
 }
 

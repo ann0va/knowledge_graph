@@ -1,7 +1,7 @@
 import React from 'react';
 import './App.css';
 import HealthCheck from './components/HealthCheck';
-import DataViewer from './components/DataViewer';
+import QueryBuilder from './components/QueryBuilder';
 
 function App() {
   return (
@@ -17,16 +17,14 @@ function App() {
           </header>
 
           <main className="space-y-8">
-            {/* Backend Health Check */}
+            {/* Compact Backend Health Check */}
             <section>
-              <h2 className="text-xl font-semibold mb-4">🔗 Backend Verbindung</h2>
               <HealthCheck />
             </section>
 
-            {/* Data Viewer */}
+            {/* Query Builder with integrated Data Viewer */}
             <section>
-              <h2 className="text-xl font-semibold mb-4">📊 Datenbank Inhalt</h2>
-              <DataViewer />
+              <QueryBuilder />
             </section>
           </main>
         </div>

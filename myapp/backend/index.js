@@ -166,15 +166,6 @@ function setupRoutes() {
     // === PROPERTY GRAPH ROUTES (unverändert) ===
     app.use('/api/graph', require('./src/routes/graph')(repositoryFactory));
 
-    // === LEGACY ENTITY ROUTES (können bleiben für Backwards Compatibility) ===
-    app.use('/api/person', require('./src/routes/person')(repositoryFactory));
-    app.use('/api/place', require('./src/routes/place')(repositoryFactory));
-    app.use('/api/work', require('./src/routes/work')(repositoryFactory));
-    app.use('/api/award', require('./src/routes/award')(repositoryFactory));
-    app.use('/api/workplace', require('./src/routes/workplace')(repositoryFactory));
-    app.use('/api/field', require('./src/routes/field')(repositoryFactory));
-    app.use('/api/occupation', require('./src/routes/occupation')(repositoryFactory));
-
     // === QUERY ROUTES (bestehende) ===
     app.use('/api/query', require('./src/routes/query')(repositoryFactory));
 

@@ -101,7 +101,7 @@ const DataViewer = () => {
             .join('. ');
     };
 
-    // Wikidata ID extrahieren
+    // 1. WIKIDATA ID EXTRAKTION - Zeile ~108
     const extractWikidataId = (item, source) => {
         if (source === 'oracle') {
             // Oracle: "PERSONS(Q7251)" → "Q7251"
@@ -109,7 +109,7 @@ const DataViewer = () => {
             return match ? match[1] : null;
         } else {
             // Memgraph: entity_id ist direkt die Wikidata ID
-            return item.entity_id || null;
+            return item['e.id'] || item.entity_id || null;
         }
     };
 
@@ -133,27 +133,21 @@ const DataViewer = () => {
             return idA.localeCompare(idB);
         });
 
-        // Hilfsfunktion um Namen aus verschiedenen Feldern zu extrahieren
+        // 2. NAME EXTRAKTION - Zeile ~200 ca.
         const getName = (item, source) => {
             let name = '';
             if (source === 'oracle') {
                 name = item.NAME || 'Unbenannt';
             } else {
-                // Memgraph: verschiedene Feldnamen je Entity-Typ
-                name = item['p.name'] ||   // person
-                    item['a.name'] ||   // award  
-                    item['f.name'] ||   // field
-                    item['w.name'] ||   // work, workplace
-                    item['o.name'] ||   // occupation
-                    item.name ||
-                    'Unbenannt';
+                // Memgraph: e.name für alle Entity-Typen
+                name = item['e.name'] || item.name || 'Unbenannt';
             }
 
             // Intelligente Kapitalisierung anwenden
             return smartCapitalize(name);
         };
 
-        // Erweiterte Details für Person
+        // 3. PERSON DETAILS FÜR MEMGRAPH - Zeile ~240 ca.
         const getPersonDetails = (item, source) => {
             if (source === 'oracle') {
                 return (
@@ -204,40 +198,41 @@ const DataViewer = () => {
                     </div>
                 );
             } else {
+                // MEMGRAPH - KORRIGIERTE FELDNAMEN!
                 return (
                     <div className="space-y-2">
                         <div className="grid grid-cols-1 gap-1 text-xs">
-                            {item['p.birth_date'] && (
+                            {item['e.birth_date'] && (
                                 <div className="flex items-center gap-1">
                                     <span className="text-green-600">🎂</span>
                                     <span className="font-medium">Geboren:</span>
-                                    <span>{item['p.birth_date'].split(' ')[0]}</span>
+                                    <span>{item['e.birth_date'].split(' ')[0]}</span>
                                 </div>
                             )}
-                            {item['p.death_date'] && (
+                            {item['e.death_date'] && (
                                 <div className="flex items-center gap-1">
                                     <span className="text-red-600">⚱️</span>
                                     <span className="font-medium">Gestorben:</span>
-                                    <span>{item['p.death_date'].split(' ')[0]}</span>
+                                    <span>{item['e.death_date'].split(' ')[0]}</span>
                                 </div>
                             )}
-                            {item['p.gender'] && (
+                            {item['e.gender'] && (
                                 <div className="flex items-center gap-1">
-                                    <span>{item['p.gender'] === 'Male' ? '👨' : item['p.gender'] === 'Female' ? '👩' : '👤'}</span>
+                                    <span>{item['e.gender'] === 'Male' ? '👨' : item['e.gender'] === 'Female' ? '👩' : '👤'}</span>
                                     <span className="font-medium">Geschlecht:</span>
-                                    <span>{item['p.gender']}</span>
+                                    <span>{item['e.gender']}</span>
                                 </div>
                             )}
-                            {item['p.description'] && (
+                            {item['e.description'] && (
                                 <div className="flex items-start gap-1 mt-1">
                                     <span className="text-blue-600">📄</span>
                                     <div>
                                         <span className="font-medium">Beschreibung:</span>
                                         <div className="text-gray-600 mt-0.5">
                                             {sentenceCase(
-                                                item['p.description'].length > 80
-                                                    ? `${item['p.description'].substring(0, 80)}...`
-                                                    : item['p.description']
+                                                item['e.description'].length > 80
+                                                    ? `${item['e.description'].substring(0, 80)}...`
+                                                    : item['e.description']
                                             )}
                                         </div>
                                     </div>
@@ -253,7 +248,8 @@ const DataViewer = () => {
                 );
             }
         };
-
+        
+        
         // Vereinfachte Details für andere Entity-Typen
         const getSimpleDetails = (item, source) => {
             return (
@@ -273,12 +269,13 @@ const DataViewer = () => {
             );
         };
 
-        // Ermittle Entity-Typ basierend auf verfügbaren Feldern
+        // 4. PERSON ENTITY DETECTION - Zeile ~330 ca.
         const isPersonEntity = (item, source) => {
             if (source === 'oracle') {
                 return item.BIRTH_DATE || item.DEATH_DATE || item.GENDER;
             } else {
-                return item['p.name'] || item['p.birth_date'] || item['p.gender'];
+                // MEMGRAPH - KORRIGIERTE FELDNAMEN!
+                return item['e.name'] || item['e.birth_date'] || item['e.gender'];
             }
         };
 
