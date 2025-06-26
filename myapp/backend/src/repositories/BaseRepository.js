@@ -1,9 +1,8 @@
-﻿// src/repositories/BaseRepository_CLEAN.js - Komplett neue, saubere Version
+﻿// src/repositories/BaseRepository_FIXED.js - Komplett überarbeitet
 const { OracleGraphRESTClient } = require('../../oracle_graph_js_client');
 
 class BaseRepository {
     constructor(db, dbType) {
-        this.db = db;
         this.dbType = dbType;
 
         // Oracle Property Graph Client für Oracle-Queries
@@ -11,6 +10,9 @@ class BaseRepository {
             this.pgClient = new OracleGraphRESTClient();
             this.defaultGraph = 'ALL_GRAPH';
         }
+
+        // Memgraph: Wir importieren die Session direkt, wenn nötig
+        // this.db wird nicht mehr verwendet
     }
 
     // Hauptmethode: Query ausführen
@@ -63,14 +65,16 @@ class BaseRepository {
         }
     }
 
-    // Memgraph Query ausführen - FIXED VERSION
+    // Memgraph Query ausführen - COMPLETE REWRITE
     async executeMemgraphFixed(query, params = {}) {
         let session;
         try {
-            session = this.db.getMemgraphSession ? this.db.getMemgraphSession() : this.db;
+            // ALWAYS import session directly - no dependency on this.db
+            const { getMemgraphSession } = require('../config/database');
+            session = getMemgraphSession();
 
             if (!session || !session.run) {
-                throw new Error('Invalid Memgraph session');
+                throw new Error('Invalid Memgraph session - check database config');
             }
 
             // Parameter direkt in Query einbauen (umgeht Neo4j Parameter-Bug)
@@ -95,7 +99,7 @@ class BaseRepository {
                 }
             }
 
-            console.log('🔍 Memgraph Query (CLEAN):', processedQuery);
+            console.log('🔍 Memgraph Query (FIXED):', processedQuery);
 
             // Query OHNE Parameter-Objekt ausführen
             const result = await session.run(processedQuery);
