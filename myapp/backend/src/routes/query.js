@@ -206,7 +206,8 @@ async function executeStructuredQuery(database, queryType, entityType, entityNam
             if (targetEntityType) {
                 filteredResults = relationships.filter(rel => {
                     if (database === 'oracle') {
-                        return rel.target_type && rel.target_type.toLowerCase().includes(targetEntityType.toLowerCase());
+                       // return rel.TARGET_VERTEX_ID && rel.TARGET_VERTEX_ID.toUpperCase().includes(targetEntityType.toUpperCase());
+                        return rel.TARGET_VERTEX_ID && rel.TARGET_VERTEX_ID.toLowerCase().includes(targetEntityType.toLowerCase());
                     } else {
                         return rel.target_labels && rel.target_labels.some(label =>
                             label.toLowerCase() === targetEntityType.toLowerCase()

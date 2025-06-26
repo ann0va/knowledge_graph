@@ -1,4 +1,4 @@
-﻿// src/components/QueryBuilder.js - KOMPLETT mit Backend-Integration
+﻿// src/components/QueryBuilder.js - FIXED: Korrekte Relationship Types + Result Mapping
 import React, { useState } from 'react';
 import { Search, Play, Database, GitBranch, User, Award, MapPin, Briefcase, FileText, Building } from 'lucide-react';
 import DataViewer from './DataViewer';
@@ -28,18 +28,45 @@ const QueryBuilder = () => {
         place: ['London', 'Cambridge', 'Manchester']
     };
 
+    // 🔧 FIXED: Korrekte Relationship Types basierend auf Backend-Daten
     const relationships = {
         person: [
-            { id: 'worked_in', label: 'arbeitete in', target: 'field' },
-            { id: 'received', label: 'erhielt Auszeichnung', target: 'award' },
-            { id: 'born_in', label: 'wurde geboren in', target: 'place' },
-            { id: 'died_in', label: 'starb in', target: 'place' },
-            { id: 'known_for', label: 'ist bekannt für', target: 'work' },
-            { id: 'worked_at', label: 'arbeitete bei', target: 'workplace' }
+            { id: 'WORKS_IN', label: 'arbeitet in Bereich', target: 'field' },
+            { id: 'HAS_OCCUPATION', label: 'hat Beruf', target: 'occupation' },
+            { id: 'RECEIVED', label: 'erhielt Auszeichnung', target: 'award' },
+            { id: 'BORN_IN', label: 'wurde geboren in', target: 'place' },
+            { id: 'DIED_IN', label: 'starb in', target: 'place' },
+            { id: 'WORKED_AT', label: 'arbeitete bei', target: 'workplace' },
+            { id: 'CREATED', label: 'erschuf Werk', target: 'work' },
+            { id: 'STUDENT_OF', label: 'war Student von', target: 'person' },
+            { id: 'ADVISED', label: 'betreute', target: 'person' },
+            { id: 'PARTNER_OF', label: 'war Partner von', target: 'person' },
+            { id: 'RELATIVE_OF', label: 'ist verwandt mit', target: 'person' },
+            { id: 'INFLUENCED_BY', label: 'wurde beeinflusst von', target: 'person' },
+            { id: 'SIGNIFICANT_FOR', label: 'war bedeutsam für', target: 'person' },
+            { id: 'PARENT_OF', label: 'ist Elternteil von', target: 'person' },
+            { id: 'NATIONAL_OF', label: 'ist Staatsangehöriger von', target: 'place' }
         ],
         award: [
-            { id: 'awarded_to', label: 'wurde verliehen an', target: 'person' },
-            { id: 'in_field', label: 'ist im Bereich', target: 'field' }
+            { id: 'AWARDED_TO', label: 'wurde verliehen an', target: 'person' },
+            { id: 'IN_FIELD', label: 'ist im Bereich', target: 'field' }
+        ],
+        field: [
+            { id: 'WORKED_BY', label: 'wird bearbeitet von', target: 'person' }
+        ],
+        place: [
+            { id: 'BIRTH_PLACE_OF', label: 'ist Geburtsort von', target: 'person' },
+            { id: 'DEATH_PLACE_OF', label: 'ist Sterbeort von', target: 'person' },
+            { id: 'WORKPLACE_IN', label: 'hat Arbeitsplätze', target: 'workplace' }
+        ],
+        work: [
+            { id: 'CREATED_BY', label: 'wurde erschaffen von', target: 'person' }
+        ],
+        workplace: [
+            { id: 'EMPLOYED', label: 'beschäftigte', target: 'person' }
+        ],
+        occupation: [
+            { id: 'HELD_BY', label: 'wird ausgeübt von', target: 'person' }
         ]
     };
 
@@ -144,7 +171,9 @@ const QueryBuilder = () => {
                 rel?.target === 'award' ? 'Auszeichnungen' :
                     rel?.target === 'place' ? 'Orte' :
                         rel?.target === 'work' ? 'Werke' :
-                            rel?.target === 'workplace' ? 'Arbeitsplätze' : 'Entitäten'} in denen ${selectedEntity} ${rel?.label || 'verbunden ist'}`;
+                            rel?.target === 'workplace' ? 'Arbeitsplätze' :
+                                rel?.target === 'person' ? 'Personen' :
+                                    rel?.target === 'occupation' ? 'Berufe' : 'Entitäten'} die mit ${selectedEntity} durch "${rel?.label}" verbunden sind`;
         }
         return '';
     };
@@ -152,9 +181,9 @@ const QueryBuilder = () => {
     const generatePGQL = () => {
         if (queryType === 'find_related' && selectedEntity && relationshipType) {
             const rel = relationships[selectedEntityType]?.find(r => r.id === relationshipType);
-            return `SELECT t.name 
-FROM MATCH (p:${selectedEntityType.toUpperCase()}) -[:${relationshipType.toUpperCase()}]-> (t:${rel?.target?.toUpperCase() || 'ENTITY'})
-WHERE p.name = '${selectedEntity}'`;
+            return `SELECT t.name, t.id
+                    FROM MATCH (p:${selectedEntityType.toUpperCase()})-[:${relationshipType}]->(t:${rel?.target?.toUpperCase() || 'ENTITY'}) ON ALL_GRAPH
+                    WHERE p.name = '${selectedEntity}'`;
         }
         return '';
     };
@@ -162,9 +191,9 @@ WHERE p.name = '${selectedEntity}'`;
     const generateCypher = () => {
         if (queryType === 'find_related' && selectedEntity && relationshipType) {
             const rel = relationships[selectedEntityType]?.find(r => r.id === relationshipType);
-            return `MATCH (p:${selectedEntityType}) -[:${relationshipType.toUpperCase()}]-> (t:${rel?.target || 'entity'})
+            return `MATCH (p:${selectedEntityType})-[:${relationshipType}]->(t:${rel?.target || 'entity'})
 WHERE p.name = '${selectedEntity}'
-RETURN t.name`;
+RETURN t.name, t.id`;
         }
         return '';
     };
@@ -209,7 +238,7 @@ RETURN t.name`;
         </div>
     );
 
-    // 🎯 QUERY RESULTS COMPONENT
+    // 🔧 FIXED: Query Results Component mit korrektem Mapping
     const QueryResultsDisplay = () => {
         if (queryError) {
             return (
@@ -240,15 +269,30 @@ RETURN t.name`;
                             <div className="p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
                                 ❌ {queryResults.results.oracle.error}
                             </div>
-                        ) : (
+                        ) : queryResults.results.oracle.relationships && queryResults.results.oracle.relationships.length > 0 ? (
                             <div className="space-y-2">
-                                {queryResults.results.oracle.relationships?.map((rel, idx) => (
+                                {queryResults.results.oracle.relationships.map((rel, idx) => (
                                     <div key={idx} className="p-3 bg-red-50 rounded border border-red-200 text-sm">
-                                        <div className="font-medium">{rel.target_name}</div>
-                                        <div className="text-gray-600">ID: {rel.target_entity_id}</div>
-                                        <div className="text-xs text-gray-500">Typ: {rel.target_type}</div>
+                                        <div className="font-medium">{rel.target_name || rel.TARGET_NAME || 'Unbekannt'}</div>
+                                        <div className="text-gray-600">ID: {rel.target_entity_id || rel.TARGET_VERTEX_ID || 'N/A'}</div>
+                                        <div className="text-xs text-gray-500">
+                                            Typ: {rel.relationship_type || rel.RELATIONSHIP_TYPE || 'N/A'}
+                                        </div>
                                     </div>
                                 ))}
+                            </div>
+                        ) : (
+                            <div className="p-3 bg-gray-50 border border-gray-200 rounded text-gray-600 text-sm">
+                                ℹ️ Keine Ergebnisse gefunden
+                            </div>
+                        )}
+
+                        {/* Source Entity Info */}
+                        {queryResults.results.oracle.sourceEntity && (
+                            <div className="mt-3 p-3 bg-red-25 border border-red-100 rounded text-xs">
+                                <strong>Quell-Entity:</strong> {queryResults.results.oracle.sourceEntity.NAME || queryResults.results.oracle.sourceEntity.name || 'N/A'}
+                                <br />
+                                <strong>ID:</strong> {queryResults.results.oracle.sourceEntity.VERTEX_ID || queryResults.results.oracle.sourceEntity.vertex_id || 'N/A'}
                             </div>
                         )}
                     </div>
@@ -266,15 +310,35 @@ RETURN t.name`;
                             <div className="p-3 bg-blue-50 border border-blue-200 rounded text-blue-700 text-sm">
                                 ❌ {queryResults.results.memgraph.error}
                             </div>
-                        ) : (
+                        ) : queryResults.results.memgraph.relationships && queryResults.results.memgraph.relationships.length > 0 ? (
                             <div className="space-y-2">
-                                {queryResults.results.memgraph.relationships?.map((rel, idx) => (
+                                {queryResults.results.memgraph.relationships.map((rel, idx) => (
                                     <div key={idx} className="p-3 bg-blue-50 rounded border border-blue-200 text-sm">
-                                        <div className="font-medium">{rel.target_name}</div>
-                                        <div className="text-gray-600">ID: {rel.target_entity_id}</div>
-                                        <div className="text-xs text-gray-500">Labels: {rel.target_labels?.join(', ')}</div>
+                                        <div className="font-medium">{rel.target_name || 'Unbekannt'}</div>
+                                        <div className="text-gray-600">ID: {rel.target_entity_id || 'N/A'}</div>
+                                        <div className="text-xs text-gray-500">
+                                            Labels: {rel.target_labels?.join(', ') || 'N/A'}
+                                        </div>
+                                        <div className="text-xs text-gray-500">
+                                            Typ: {rel.relationship_type || 'N/A'}
+                                        </div>
                                     </div>
                                 ))}
+                            </div>
+                        ) : (
+                            <div className="p-3 bg-gray-50 border border-gray-200 rounded text-gray-600 text-sm">
+                                ℹ️ Keine Ergebnisse gefunden
+                            </div>
+                        )}
+
+                        {/* Source Entity Info */}
+                        {queryResults.results.memgraph.sourceEntity && (
+                            <div className="mt-3 p-3 bg-blue-25 border border-blue-100 rounded text-xs">
+                                <strong>Quell-Entity:</strong> {queryResults.results.memgraph.sourceEntity.name || queryResults.results.memgraph.sourceEntity['e.name'] || 'N/A'}
+                                <br />
+                                <strong>ID:</strong> {queryResults.results.memgraph.sourceEntity.vertex_id || queryResults.results.memgraph.sourceEntity['e.id'] || 'N/A'}
+                                <br />
+                                <strong>Labels:</strong> {queryResults.results.memgraph.sourceEntity.labels?.join(', ') || 'N/A'}
                             </div>
                         )}
                     </div>
@@ -288,16 +352,27 @@ RETURN t.name`;
                             <div>
                                 <h5 className="text-sm font-medium text-red-700 mb-2">Oracle PGQL:</h5>
                                 <pre className="bg-red-50 p-3 rounded text-xs overflow-x-auto border border-red-200">
-                  <code>{queryResults.generatedQueries.oracle}</code>
-                </pre>
+                                    <code>{queryResults.generatedQueries.oracle}</code>
+                                </pre>
                             </div>
                             <div>
                                 <h5 className="text-sm font-medium text-blue-700 mb-2">Memgraph Cypher:</h5>
                                 <pre className="bg-blue-50 p-3 rounded text-xs overflow-x-auto border border-blue-200">
-                  <code>{queryResults.generatedQueries.memgraph}</code>
-                </pre>
+                                    <code>{queryResults.generatedQueries.memgraph}</code>
+                                </pre>
                             </div>
                         </div>
+                    </div>
+                )}
+
+                {/* Metadata */}
+                {queryResults.metadata && (
+                    <div className="mt-4 p-3 bg-gray-50 border border-gray-200 rounded text-xs">
+                        <strong>Query Metadata:</strong>
+                        <br />
+                        Ausgeführt auf: {queryResults.metadata.executedOn}
+                        <br />
+                        Zeitstempel: {new Date(queryResults.metadata.timestamp).toLocaleString()}
                     </div>
                 )}
             </div>
@@ -423,8 +498,8 @@ RETURN t.name`;
                                 Oracle PGQL
                             </h4>
                             <pre className="bg-red-50 p-4 rounded-lg text-sm overflow-x-auto border border-red-200">
-                <code>{generatePGQL()}</code>
-              </pre>
+                                <code>{generatePGQL()}</code>
+                            </pre>
                         </div>
 
                         {/* Memgraph Cypher */}
@@ -434,8 +509,8 @@ RETURN t.name`;
                                 Memgraph Cypher
                             </h4>
                             <pre className="bg-blue-50 p-4 rounded-lg text-sm overflow-x-auto border border-blue-200">
-                <code>{generateCypher()}</code>
-              </pre>
+                                <code>{generateCypher()}</code>
+                            </pre>
                         </div>
                     </div>
 

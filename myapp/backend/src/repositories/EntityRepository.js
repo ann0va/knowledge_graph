@@ -210,14 +210,12 @@ class EntityRepository extends BaseRepository {
         const memgraphLabel = this.config.memgraph_label;
 
         const queries = {
-            // 🔧 FIXED: Oracle PGQL ohne LIKE
+            // 🔧 FIXED: Oracle PGQL - Keine labels() Funktion, korrektes Pattern Matching
             oracle: `SELECT label(e) as relationship_type,
                             id(source) as source_vertex_id,
-                            labels(source) as source_labels,
-                            source.id as source_entity_id,
                             source.name as source_name
                      FROM MATCH (source)-[e]->(target:${oracleLabel}) ON ${this.defaultGraph}
-                     WHERE target.id = '${wikidataId}'`,
+                     WHERE id(target) = 'PERSONS(${wikidataId})'`,
             memgraph: `MATCH (source)-[e]->(target:${memgraphLabel} {id: $wikidataId})
                       RETURN type(e) as relationship_type,
                              id(source) as source_vertex_id,
@@ -230,46 +228,66 @@ class EntityRepository extends BaseRepository {
         return await this.execute(queries, { wikidataId });
     }
 
-    // 🎯 Spezifische Beziehungen - KORRIGIERTE Oracle PGQL
+    // In getSpecificRelationships() Methode - NACH Zeile 172:
     async getSpecificRelationships(wikidataId, relationshipType, direction = 'outgoing') {
         const oracleLabel = this.config.oracle_label;
         const memgraphLabel = this.config.memgraph_label;
 
+        // 🔍 DEBUG LOGS HINZUFÜGEN:
+        console.log(`🔍 getSpecificRelationships DEBUG:`);
+        console.log(`   Entity Type: ${this.entityType}`);
+        console.log(`   Oracle Label: ${oracleLabel}`);
+        console.log(`   Memgraph Label: ${memgraphLabel}`);
+        console.log(`   Wikidata ID: ${wikidataId}`);
+        console.log(`   Relationship Type: ${relationshipType}`);
+        console.log(`   Direction: ${direction}`);
+
+        // ORACLE TABLENAME DEBUG:
+        const oracleTableName = this.getOracleTableName();
+        console.log(`   Oracle Table Name: ${oracleTableName}`);
+        const expectedVertexId = `${oracleTableName}(${wikidataId})`;
+        console.log(`   Expected Vertex ID: ${expectedVertexId}`);
+
         const queries = {
-            // 🔧 FIXED: Oracle PGQL ohne LIKE
+            // 🔧 FIXED: Verwende dynamischen Tabellennamen statt hardcoded 'PERSONS'
             oracle: direction === 'outgoing'
                 ? `SELECT label(e) as relationship_type,
-                          id(target) as target_vertex_id,
-                          labels(target) as target_labels,
-                          target.id as target_entity_id,
-                          target.name as target_name
-                   FROM MATCH (source:${oracleLabel})-[e:${relationshipType}]->(target) ON ${this.defaultGraph}
-                   WHERE source.id = '${wikidataId}'`
+                      id(target) as target_vertex_id,
+                      target.name as target_name
+               FROM MATCH (source:${oracleLabel})-[e:${relationshipType}]->(target) ON ${this.defaultGraph}
+               WHERE id(source) = '${expectedVertexId}'`
                 : `SELECT label(e) as relationship_type,
-                          id(source) as source_vertex_id,
-                          labels(source) as source_labels,
-                          source.id as source_entity_id,
-                          source.name as source_name
-                   FROM MATCH (source)-[e:${relationshipType}]->(target:${oracleLabel}) ON ${this.defaultGraph}
-                   WHERE target.id = '${wikidataId}'`,
+                      id(source) as source_vertex_id,
+                      source.name as source_name
+               FROM MATCH (source)-[e:${relationshipType}]->(target:${oracleLabel}) ON ${this.defaultGraph}
+               WHERE id(target) = '${expectedVertexId}'`,
             memgraph: direction === 'outgoing'
                 ? `MATCH (source:${memgraphLabel} {id: $wikidataId})-[e:${relationshipType}]->(target)
-                   RETURN type(e) as relationship_type,
-                          id(target) as target_vertex_id,
-                          labels(target) as target_labels,
-                          target.id as target_entity_id,
-                          target.name as target_name,
-                          properties(target) as target_properties`
+               RETURN type(e) as relationship_type,
+                      id(target) as target_vertex_id,
+                      labels(target) as target_labels,
+                      target.id as target_entity_id,
+                      target.name as target_name,
+                      properties(target) as target_properties`
                 : `MATCH (source)-[e:${relationshipType}]->(target:${memgraphLabel} {id: $wikidataId})
-                   RETURN type(e) as relationship_type,
-                          id(source) as source_vertex_id,
-                          labels(source) as source_labels,
-                          source.id as source_entity_id,
-                          source.name as source_name,
-                          properties(source) as source_properties`
+               RETURN type(e) as relationship_type,
+                      id(source) as source_vertex_id,
+                      labels(source) as source_labels,
+                      source.id as source_entity_id,
+                      source.name as source_name,
+                      properties(source) as source_properties`
         };
 
-        return await this.execute(queries, { wikidataId });
+        // 🔍 GENERATED QUERIES DEBUG:
+        console.log(`🔍 Generated Oracle Query:`, queries.oracle);
+        console.log(`🔍 Generated Memgraph Query:`, queries.memgraph);
+
+        const result = await this.execute(queries, { wikidataId });
+
+        // 🔍 RESULT DEBUG:
+        console.log(`🔍 Query Result:`, JSON.stringify(result, null, 2));
+
+        return result;
     }
 
     // 🎯 Statistiken
