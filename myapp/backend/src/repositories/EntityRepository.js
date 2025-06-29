@@ -1,54 +1,57 @@
-﻿// src/repositories/EntityRepository.js - KORRIGIERTE Oracle PGQL Syntax
+﻿// src/repositories/EntityRepository.js - COMPLETE FIXED VERSION
 const BaseRepository = require('./BaseRepository');
 
-// Entity-Konfiguration - EINFACH UND KLAR
+// 🔧 FIXED: Entity-Konfiguration - Sichere Oracle Fields pro Typ
 const ENTITY_CONFIGS = {
     person: {
         oracle_label: 'PERSON',
         memgraph_label: 'person',
-        oracle_fields: ['name', 'birth_date', 'death_date', 'gender', 'description'], // KEIN 'id'!
+        // Sichere Oracle Fields nur für Person
+        oracle_safe_fields: ['name', 'birth_date', 'death_date', 'gender', 'description'],
         memgraph_fields: ['id', 'name', 'birth_date', 'death_date', 'gender', 'description'],
         searchField: 'name'
     },
     place: {
         oracle_label: 'PLACE',
         memgraph_label: 'place',
-        oracle_fields: ['id', 'name', 'type'],
+        // Nur sichere Fields für Place
+        oracle_safe_fields: ['name', 'type'],
         memgraph_fields: ['id', 'name', 'type'],
         searchField: 'name'
     },
     work: {
         oracle_label: 'WORK',
         memgraph_label: 'work',
-        oracle_fields: ['id', 'name', 'type'],
+        oracle_safe_fields: ['name', 'type'],
         memgraph_fields: ['id', 'name', 'type'],
         searchField: 'name'
     },
     award: {
         oracle_label: 'AWARD',
         memgraph_label: 'award',
-        oracle_fields: ['id', 'name'],
+        // Minimale sichere Fields für Award
+        oracle_safe_fields: ['name'],
         memgraph_fields: ['id', 'name'],
         searchField: 'name'
     },
     field: {
         oracle_label: 'FIELD',
         memgraph_label: 'field',
-        oracle_fields: ['id', 'name'],
+        oracle_safe_fields: ['name'],
         memgraph_fields: ['id', 'name'],
         searchField: 'name'
     },
     occupation: {
         oracle_label: 'OCCUPATION',
         memgraph_label: 'occupation',
-        oracle_fields: ['id', 'name'],
+        oracle_safe_fields: ['name'],
         memgraph_fields: ['id', 'name'],
         searchField: 'name'
     },
     workplace: {
         oracle_label: 'WORKPLACE',
         memgraph_label: 'workplace',
-        oracle_fields: ['id', 'name', 'type'],
+        oracle_safe_fields: ['name', 'type'],
         memgraph_fields: ['id', 'name', 'type'],
         searchField: 'name'
     }
@@ -73,22 +76,21 @@ class EntityRepository extends BaseRepository {
         }
     }
 
-    // 🎯 Alle Entities abrufen - FIXED: Korrekte Labels verwenden
+    // 🔧 FIXED: Alle Entities abrufen - Sichere Oracle Fields
     async findAll(limit = 100) {
-        const oracleLabel = this.config.oracle_label;  // 'PERSON'
-        const memgraphLabel = this.config.memgraph_label;  // 'person'
-        const oracleFields = this.config.oracle_fields.filter(field => field !== 'id');
+        const oracleLabel = this.config.oracle_label;
+        const memgraphLabel = this.config.memgraph_label;
+        const oracleSafeFields = this.config.oracle_safe_fields || ['name'];
         const memgraphFields = this.config.memgraph_fields;
 
-        console.log(`🔍 Using labels: Oracle="${oracleLabel}", Memgraph="${memgraphLabel}"`);
+        console.log(`🔍 Using safe Oracle fields for ${this.entityType}:`, oracleSafeFields);
 
         const queries = {
-            // Oracle: UPPERCASE Label
+            // ✅ FIXED: Nur sichere Fields
             oracle: `SELECT id(e) as vertex_id,
-                            ${oracleFields.map(field => `e.${field}`).join(',\n                            ')}
+                            ${oracleSafeFields.map(field => `e.${field}`).join(',\n                            ')}
                      FROM MATCH (e:${oracleLabel}) ON ${this.defaultGraph}
                          LIMIT ${limit}`,
-            // Memgraph: LOWERCASE Label (aus config!)
             memgraph: `MATCH (e:${memgraphLabel})
                       RETURN id(e) as vertex_id,
                              labels(e) as labels,
@@ -97,26 +99,27 @@ class EntityRepository extends BaseRepository {
                       LIMIT $limit`
         };
 
+        console.log(`🔍 Oracle findAll query:`, queries.oracle);
+
         return await this.execute(queries, { limit: parseInt(limit) });
     }
 
-    // 🎯 Entity nach Wikidata-ID suchen
+    // 🔧 FIXED: Entity nach Wikidata-ID suchen - Sichere Oracle Fields
     async findById(wikidataId) {
         const oracleLabel = this.config.oracle_label;
         const memgraphLabel = this.config.memgraph_label;
-        const oracleFields = this.config.oracle_fields.filter(field => field !== 'id');
+        const oracleSafeFields = this.config.oracle_safe_fields || ['name'];
         const memgraphFields = this.config.memgraph_fields;
 
         // Oracle Tabellenname für Vertex ID
         const oracleTableName = this.getOracleTableName();
 
         const queries = {
-            // Oracle: Suche mit verschiedenen ID-Formaten
+            // ✅ FIXED: Nur sichere Fields
             oracle: `SELECT id(e) as vertex_id,
-                            ${oracleFields.map(field => `e.${field}`).join(',\n                            ')}
+                            ${oracleSafeFields.map(field => `e.${field}`).join(',\n                            ')}
                      FROM MATCH (e:${oracleLabel}) ON ${this.defaultGraph}
                      WHERE e.id = '${wikidataId}' OR id(e) = '${oracleTableName}(${wikidataId})'`,
-            // Memgraph: Wikidata-ID ist Property
             memgraph: `MATCH (e:${memgraphLabel} {id: $wikidataId})
                       RETURN id(e) as vertex_id,
                              labels(e) as labels,
@@ -150,24 +153,29 @@ class EntityRepository extends BaseRepository {
         return tableMapping[this.entityType] || this.entityType.toUpperCase() + 'S';
     }
 
-    // 🎯 Nach Name suchen - FIXED: Korrekte Labels
+    // 🔧 FIXED: Nach Name suchen - Sichere Oracle Fields + Leere Suche
     async searchByName(searchTerm, limit = 20) {
-        const oracleLabel = this.config.oracle_label;   // 'PERSON'
-        const memgraphLabel = this.config.memgraph_label; // 'person'
-        const oracleFields = this.config.oracle_fields;
+        // Wenn searchTerm leer ist, nutze findAll für bessere Performance
+        if (!searchTerm || searchTerm.trim() === '') {
+            console.log(`🔍 Empty search term, using findAll for ${this.entityType}`);
+            return await this.findAll(limit);
+        }
+
+        const oracleLabel = this.config.oracle_label;
+        const memgraphLabel = this.config.memgraph_label;
+        const oracleSafeFields = this.config.oracle_safe_fields || ['name'];
         const memgraphFields = this.config.memgraph_fields;
         const searchField = this.config.searchField;
 
-        console.log(`🔍 Search labels: Oracle="${oracleLabel}", Memgraph="${memgraphLabel}"`);
+        console.log(`🔍 Safe Oracle fields for ${this.entityType}:`, oracleSafeFields);
 
         const queries = {
-            // 🔧 ORACLE PGQL FINAL: Verwende nur Gleichheit oder Regex
+            // ✅ FIXED: Nur sichere Fields abfragen
             oracle: `SELECT id(e) as vertex_id,
-                            ${oracleFields.map(field => `e.${field}`).join(',\n                            ')}
+                            ${oracleSafeFields.map(field => `e.${field}`).join(',\n                            ')}
                      FROM MATCH (e:${oracleLabel}) ON ${this.defaultGraph}
                      WHERE java_regexp_like(e.${searchField}, '.*${searchTerm}.*', 'i')
                          LIMIT ${limit}`,
-            // Memgraph bleibt unverändert
             memgraph: `MATCH (e:${memgraphLabel})
                       WHERE toUpper(e.${searchField}) CONTAINS toUpper($searchTerm)
                       RETURN id(e) as vertex_id,
@@ -176,6 +184,8 @@ class EntityRepository extends BaseRepository {
                              properties(e) as all_properties
                       LIMIT $limit`
         };
+
+        console.log(`🔍 Oracle search query for ${this.entityType}:`, queries.oracle);
 
         return await this.execute(queries, { searchTerm, limit: parseInt(limit) });
     }
@@ -228,7 +238,7 @@ class EntityRepository extends BaseRepository {
         return await this.execute(queries, { wikidataId });
     }
 
-    // In getSpecificRelationships() Methode - NACH Zeile 172:
+    // 🔧 FIXED: Spezifische Beziehungen - Dynamischer Tabellenname
     async getSpecificRelationships(wikidataId, relationshipType, direction = 'outgoing') {
         const oracleLabel = this.config.oracle_label;
         const memgraphLabel = this.config.memgraph_label;
@@ -252,15 +262,15 @@ class EntityRepository extends BaseRepository {
             // 🔧 FIXED: Verwende dynamischen Tabellennamen statt hardcoded 'PERSONS'
             oracle: direction === 'outgoing'
                 ? `SELECT label(e) as relationship_type,
-                      id(target) as target_vertex_id,
-                      target.name as target_name
-               FROM MATCH (source:${oracleLabel})-[e:${relationshipType}]->(target) ON ${this.defaultGraph}
-               WHERE id(source) = '${expectedVertexId}'`
+                          id(target) as target_vertex_id,
+                          target.name as target_name
+                   FROM MATCH (source:${oracleLabel})-[e:${relationshipType}]->(target) ON ${this.defaultGraph}
+                   WHERE id(source) = '${expectedVertexId}'`
                 : `SELECT label(e) as relationship_type,
-                      id(source) as source_vertex_id,
-                      source.name as source_name
-               FROM MATCH (source)-[e:${relationshipType}]->(target:${oracleLabel}) ON ${this.defaultGraph}
-               WHERE id(target) = '${expectedVertexId}'`,
+                          id(source) as source_vertex_id,
+                          source.name as source_name
+                   FROM MATCH (source)-[e:${relationshipType}]->(target:${oracleLabel}) ON ${this.defaultGraph}
+                   WHERE id(target) = '${expectedVertexId}'`,
             memgraph: direction === 'outgoing'
                 ? `MATCH (source:${memgraphLabel} {id: $wikidataId})-[e:${relationshipType}]->(target)
                RETURN type(e) as relationship_type,

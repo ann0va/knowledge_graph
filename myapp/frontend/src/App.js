@@ -1,7 +1,7 @@
 import React from 'react';
 import './App.css';
 import HealthCheck from './components/HealthCheck';
-import QueryBuilder from './components/QueryBuilder';
+import QueryBuilder from './components/query/QueryBuilder';
 
 function App() {
   return (

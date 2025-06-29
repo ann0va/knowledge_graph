@@ -129,7 +129,7 @@ class AllGraphCreator {
                     KEY (person_id, place_id)
                     SOURCE KEY (person_id) REFERENCES persons(id)
                     DESTINATION KEY (place_id) REFERENCES places(id)
-                    LABEL BORN_IN,
+                    LABEL BIRTH_IN,
                 died_in_edges 
                     KEY (person_id, place_id)
                     SOURCE KEY (person_id) REFERENCES persons(id)
@@ -144,8 +144,7 @@ class AllGraphCreator {
                     KEY (person_id, workplace_id)
                     SOURCE KEY (person_id) REFERENCES persons(id)
                     DESTINATION KEY (workplace_id) REFERENCES workplaces(id)
-                    LABEL WORKED_AT
-                    PROPERTIES (end_date),
+                    LABEL WORKED_AT,
                 created_edges 
                     KEY (person_id, work_id)
                     SOURCE KEY (person_id) REFERENCES persons(id)
@@ -161,12 +160,16 @@ class AllGraphCreator {
                     SOURCE KEY (advisor_id) REFERENCES persons(id)
                     DESTINATION KEY (advisee_id) REFERENCES persons(id)
                     LABEL ADVISED,
-                parent_edges 
-                    KEY (parent_id, child_id)
-                    SOURCE KEY (parent_id) REFERENCES persons(id)
+                father_edges 
+                    KEY (father_id, child_id)
+                    SOURCE KEY (father_id) REFERENCES persons(id)
                     DESTINATION KEY (child_id) REFERENCES persons(id)
-                    LABEL PARENT_OF
-                    PROPERTIES (relationship_type),
+                    LABEL FATHER_OF,
+                mother_edges 
+                    KEY (mother_id, child_id)
+                    SOURCE KEY (mother_id) REFERENCES persons(id)
+                    DESTINATION KEY (child_id) REFERENCES persons(id)
+                    LABEL MOTHER_OF,
                 partner_edges 
                     KEY (person1_id, person2_id)
                     SOURCE KEY (person1_id) REFERENCES persons(id)
@@ -186,7 +189,7 @@ class AllGraphCreator {
                     KEY (significant_person_id, for_person_id)
                     SOURCE KEY (significant_person_id) REFERENCES persons(id)
                     DESTINATION KEY (for_person_id) REFERENCES persons(id)
-                    LABEL SIGNIFICANT_FOR
+                    LABEL SIGNIFICANT_PERSON_FOR
             )
             OPTIONS (PG_PGQL)
         `;

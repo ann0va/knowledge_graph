@@ -1,6 +1,6 @@
 ﻿import React, { useState } from 'react';
 import { RefreshCw, Database, Users, Award, MapPin, Briefcase, FileText, Building } from 'lucide-react';
-import apiService from '../services/api';
+import apiService from '../../services/api';
 
 const DataViewer = () => {
     const [loading, setLoading] = useState(false);

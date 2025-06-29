@@ -18,7 +18,8 @@ CREATE TABLE works (id VARCHAR2(20) PRIMARY KEY, name VARCHAR2(500), type VARCHA
 
 -- Edge-Tabellen
 CREATE TABLE advised_edges (advisor_id VARCHAR2(20), advisee_id VARCHAR2(20));
-CREATE TABLE parent_edges (parent_id VARCHAR2(20), child_id VARCHAR2(20), relationship_type VARCHAR2(20));
+CREATE TABLE father_edges (father_id VARCHAR2(20), child_id VARCHAR2(20));
+CREATE TABLE mother_edges (mother_id VARCHAR2(20), child_id VARCHAR2(20));
 CREATE TABLE influence_edges (influenced_id VARCHAR2(20), influencer_id VARCHAR2(20));
 CREATE TABLE partner_edges (person1_id VARCHAR2(20), person2_id VARCHAR2(20));
 CREATE TABLE received_edges (person_id VARCHAR2(20), award_id VARCHAR2(20));
@@ -26,7 +27,7 @@ CREATE TABLE birth_in_edges (person_id VARCHAR2(20), place_id VARCHAR2(20));
 CREATE TABLE works_in_edges (person_id VARCHAR2(20), field_id VARCHAR2(20));
 CREATE TABLE national_of_edges (person_id VARCHAR2(20), place_id VARCHAR2(20));
 CREATE TABLE has_occupation_edges (person_id VARCHAR2(20), occupation_id VARCHAR2(20));
-CREATE TABLE worked_at_edges (person_id VARCHAR2(20), workplace_id VARCHAR2(20), end_date DATE);
+CREATE TABLE worked_at_edges (person_id VARCHAR2(20), workplace_id VARCHAR2(20));
 CREATE TABLE relative_edges (person1_id VARCHAR2(20), person2_id VARCHAR2(20));
 CREATE TABLE significant_person_edges (significant_person_id VARCHAR2(20), for_person_id VARCHAR2(20));
 CREATE TABLE student_of_edges (student_id VARCHAR2(20), teacher_id VARCHAR2(20));
@@ -103,16 +104,16 @@ INSERT INTO occupations (id, name) VALUES ('Q40348', 'lawyer');
 INSERT INTO occupations (id, name) VALUES ('Q1709010', 'software engineer');
 
 -- PERSONS (13 Einträge)
-INSERT INTO persons (id, name, birth_date, death_date, gender, description) VALUES ('Q7251', 'Alan Turing', TO_DATE('06/23/1912', 'MM/DD/YYYY'), TO_DATE('06/07/1954', 'MM/DD/YYYY'), 'Male', 'English computer scientist (1912–1954)');
-INSERT INTO persons (id, name, birth_date, death_date, gender, description) VALUES ('Q16493', 'Beatrice Helen Worsley', TO_DATE('10/18/1921', 'MM/DD/YYYY'), TO_DATE('05/08/1972', 'MM/DD/YYYY'), 'Female', 'first female computer scientist in Canada (1922-1972)');
-INSERT INTO persons (id, name, birth_date, death_date, gender, description) VALUES ('Q92741', 'Alonzo Church', TO_DATE('06/14/1903', 'MM/DD/YYYY'), TO_DATE('08/11/1995', 'MM/DD/YYYY'), 'Male', 'American mathematician and logician (1903–1995)');
+INSERT INTO persons (id, name, birth_date, death_date, gender, description) VALUES ('Q7251', 'Alan Turing', TO_DATE('06/23/1912', 'MM/DD/YYYY'), TO_DATE('06/07/1954', 'MM/DD/YYYY'), 'Male', 'English computer scientist');
+INSERT INTO persons (id, name, birth_date, death_date, gender, description) VALUES ('Q16493', 'Beatrice Helen Worsley', TO_DATE('10/18/1921', 'MM/DD/YYYY'), TO_DATE('05/08/1972', 'MM/DD/YYYY'), 'Female', 'first female computer scientist in Canada');
+INSERT INTO persons (id, name, birth_date, death_date, gender, description) VALUES ('Q92741', 'Alonzo Church', TO_DATE('06/14/1903', 'MM/DD/YYYY'), TO_DATE('08/11/1995', 'MM/DD/YYYY'), 'Male', 'American mathematician and logician');
 INSERT INTO persons (id, name, birth_date, death_date, gender, description) VALUES ('Q249984', 'Robin Gandy', TO_DATE('09/22/1919', 'MM/DD/YYYY'), TO_DATE('11/20/1995', 'MM/DD/YYYY'), 'Male', 'British mathematician and logician');
-INSERT INTO persons (id, name, birth_date, death_date, gender, description) VALUES ('Q20895930', 'Julius Mathison Turing', TO_DATE('11/09/1873', 'MM/DD/YYYY'), TO_DATE('08/03/1947', 'MM/DD/YYYY'), 'Male', 'father of Alan Turing, English mathematician (1873-1947)');
+INSERT INTO persons (id, name, birth_date, death_date, gender, description) VALUES ('Q20895930', 'Julius Mathison Turing', TO_DATE('11/09/1873', 'MM/DD/YYYY'), TO_DATE('08/03/1947', 'MM/DD/YYYY'), 'Male', 'father of Alan Turing, English mathematician');
 INSERT INTO persons (id, name, birth_date, death_date, gender, description) VALUES ('Q20895935', 'Ethel Sara Stoney', TO_DATE('11/18/1881', 'MM/DD/YYYY'), TO_DATE('03/06/1976', 'MM/DD/YYYY'), 'Female', 'mother of Alan Turing, English mathematician');
 INSERT INTO persons (id, name, birth_date, death_date, gender, description) VALUES ('Q21693479', 'Christopher Morcom', TO_DATE('07/13/1911', 'MM/DD/YYYY'), TO_DATE('02/13/1930', 'MM/DD/YYYY'), 'Male', 'British scientist');
 INSERT INTO persons (id, name, birth_date, death_date, gender, description) VALUES ('Q224372', 'I. J. Good', TO_DATE('12/09/1916', 'MM/DD/YYYY'), TO_DATE('04/05/2009', 'MM/DD/YYYY'), 'Male', 'British statistician and cryptographer');
-INSERT INTO persons (id, name, birth_date, death_date, gender, description) VALUES ('Q298521', 'Saul Kripke', TO_DATE('11/13/1940', 'MM/DD/YYYY'), TO_DATE('09/15/2022', 'MM/DD/YYYY'), 'Male', 'American philosopher and logician (1940–2022)');
-INSERT INTO persons (id, name, birth_date, death_date, gender, description) VALUES ('Q310798', 'Stephen Wolfram', TO_DATE('08/29/1959', 'MM/DD/YYYY'), NULL, 'Male', 'British-American scientist and businessman (born 1959)');
+INSERT INTO persons (id, name, birth_date, death_date, gender, description) VALUES ('Q298521', 'Saul Kripke', TO_DATE('11/13/1940', 'MM/DD/YYYY'), TO_DATE('09/15/2022', 'MM/DD/YYYY'), 'Male', 'American philosopher and logician');
+INSERT INTO persons (id, name, birth_date, death_date, gender, description) VALUES ('Q310798', 'Stephen Wolfram', TO_DATE('08/29/1959', 'MM/DD/YYYY'), NULL, 'Male', 'British-American scientist and businessman');
 INSERT INTO persons (id, name, birth_date, death_date, gender, description) VALUES ('Q450154', 'Andrew Hodges', TO_DATE('01/01/1949', 'MM/DD/YYYY'), NULL, 'Male', 'mathematician and popular science author');
 INSERT INTO persons (id, name, birth_date, death_date, gender, description) VALUES ('Q43075535', 'Dermot Turing', TO_DATE('02/26/1961', 'MM/DD/YYYY'), NULL, 'Male', 'British solicitor and author');
 INSERT INTO persons (id, name, birth_date, death_date, gender, description) VALUES ('Q59884129', 'Cicely Popplewell', TO_DATE('10/29/1920', 'MM/DD/YYYY'), TO_DATE('06/20/1995', 'MM/DD/YYYY'), 'Female', 'British software engineer');
@@ -155,7 +156,7 @@ INSERT INTO workplaces (id, name, type) VALUES ('Q1665138', 'Institute for Defen
 INSERT INTO workplaces (id, name, type) VALUES ('Q73079', 'Trinity College', 'Institution');
 INSERT INTO workplaces (id, name, type) VALUES ('Q1024543', 'CUNY Graduate School and University Center', 'Institution');
 
--- WORKS (27 Einträge)
+-- WORKS (25 Einträge)
 INSERT INTO works (id, name, type) VALUES ('Q20895949', 'On Computable Numbers, with an Application to the Entscheidungsproblem', 'NotableWork');
 INSERT INTO works (id, name, type) VALUES ('Q772056', 'Computing Machinery and Intelligence', 'NotableWork');
 INSERT INTO works (id, name, type) VALUES ('Q20895966', 'Intelligent Machinery', 'NotableWork');
@@ -170,7 +171,6 @@ INSERT INTO works (id, name, type) VALUES ('Q1190223', 'non-deterministic Turing
 INSERT INTO works (id, name, type) VALUES ('Q480476', 'Bombe', 'NotableWork');
 INSERT INTO works (id, name, type) VALUES ('Q1191836', 'probabilistic Turing machine', 'NotableWork');
 INSERT INTO works (id, name, type) VALUES ('Q1527413', 'Turing degree', 'NotableWork');
-INSERT INTO works (id, name, type) VALUES ('Q133854517', 'Q133854517', 'NotableWork');
 INSERT INTO works (id, name, type) VALUES ('Q4353569', 'Church–Turing–Deutsch principle', 'NotableWork');
 INSERT INTO works (id, name, type) VALUES ('Q5501323', 'Frege–Church ontology', 'NotableWork');
 INSERT INTO works (id, name, type) VALUES ('Q1308502', 'Church–Rosser theorem', 'NotableWork');
@@ -288,33 +288,27 @@ INSERT INTO has_occupation_edges (person_id, occupation_id) VALUES ('Q43075535',
 INSERT INTO has_occupation_edges (person_id, occupation_id) VALUES ('Q43075535', 'Q40348');
 INSERT INTO has_occupation_edges (person_id, occupation_id) VALUES ('Q59884129', 'Q1709010');
 
--- STUDENT_OF_EDGES (STUDENT_OF: 6 Einträge)
-INSERT INTO student_of_edges (student_id, teacher_id) VALUES ('Q7251', 'Q16493');
+-- STUDENT_OF_EDGES (STUDENT_OF: 3 Einträge)
 INSERT INTO student_of_edges (student_id, teacher_id) VALUES ('Q7251', 'Q92741');
-INSERT INTO student_of_edges (student_id, teacher_id) VALUES ('Q7251', 'Q249984');
 INSERT INTO student_of_edges (student_id, teacher_id) VALUES ('Q16493', 'Q7251');
-INSERT INTO student_of_edges (student_id, teacher_id) VALUES ('Q92741', 'Q7251');
 INSERT INTO student_of_edges (student_id, teacher_id) VALUES ('Q249984', 'Q7251');
 
--- ADVISED_EDGES (ADVISED: 6 Einträge)
+-- ADVISED_EDGES (ADVISED: 3 Einträge)
 INSERT INTO advised_edges (advisor_id, advisee_id) VALUES ('Q7251', 'Q16493');
-INSERT INTO advised_edges (advisor_id, advisee_id) VALUES ('Q7251', 'Q92741');
 INSERT INTO advised_edges (advisor_id, advisee_id) VALUES ('Q7251', 'Q249984');
-INSERT INTO advised_edges (advisor_id, advisee_id) VALUES ('Q16493', 'Q7251');
 INSERT INTO advised_edges (advisor_id, advisee_id) VALUES ('Q92741', 'Q7251');
-INSERT INTO advised_edges (advisor_id, advisee_id) VALUES ('Q249984', 'Q7251');
 
--- PARENT_EDGES (FATHER_OF: 1 Einträge)
-INSERT INTO parent_edges (parent_id, child_id, relationship_type) VALUES ('Q7251', 'Q20895930', 'FATHER_OF');
 
--- PARENT_EDGES (MOTHER_OF: 1 Einträge)
-INSERT INTO parent_edges (parent_id, child_id, relationship_type) VALUES ('Q7251', 'Q20895935', 'MOTHER_OF');
+-- FATHER_EDGES (FATHER_OF: 1 Einträge)
+INSERT INTO father_edges (father_id, child_id) VALUES ('Q20895930', 'Q7251');
 
--- PARTNER_EDGES (PARTNER_OF: 4 Einträge)
-INSERT INTO partner_edges (person1_id, person2_id) VALUES ('Q7251', 'Q21693479');
+-- MOTHER_EDGES (MOTHER_OF: 1 Einträge)
+INSERT INTO mother_edges (mother_id, child_id) VALUES ('Q20895935', 'Q7251');
+
+-- PARTNER_EDGES (PARTNER_OF: 2 Einträge)
 INSERT INTO partner_edges (person1_id, person2_id) VALUES ('Q7251', 'Q21693479');
 INSERT INTO partner_edges (person1_id, person2_id) VALUES ('Q21693479', 'Q7251');
-INSERT INTO partner_edges (person1_id, person2_id) VALUES ('Q21693479', 'Q7251');
+
 
 -- SIGNIFICANT_PERSON_EDGES (SIGNIFICANT_PERSON_FOR: 1 Einträge)
 INSERT INTO significant_person_edges (significant_person_id, for_person_id) VALUES ('Q7251', 'Q224372');
@@ -370,7 +364,7 @@ INSERT INTO worked_at_edges (person_id, workplace_id) VALUES ('Q7251', 'Q220798'
 INSERT INTO worked_at_edges (person_id, workplace_id) VALUES ('Q7251', 'Q35794');
 INSERT INTO worked_at_edges (person_id, workplace_id) VALUES ('Q7251', 'Q1967606');
 INSERT INTO worked_at_edges (person_id, workplace_id) VALUES ('Q16493', 'Q180865');
-INSERT INTO worked_at_edges (person_id, workplace_id, end_date) VALUES ('Q16493', 'Q1420038', TO_DATE('05/08/1972', 'MM/DD/YYYY'));
+INSERT INTO worked_at_edges (person_id, workplace_id) VALUES ('Q16493', 'Q1420038');
 INSERT INTO worked_at_edges (person_id, workplace_id) VALUES ('Q92741', 'Q21578');
 INSERT INTO worked_at_edges (person_id, workplace_id) VALUES ('Q92741', 'Q174710');
 INSERT INTO worked_at_edges (person_id, workplace_id) VALUES ('Q224372', 'Q220798');
@@ -390,14 +384,12 @@ INSERT INTO created_edges (person_id, work_id) VALUES ('Q7251', 'Q622849');
 INSERT INTO created_edges (person_id, work_id) VALUES ('Q7251', 'Q163310');
 INSERT INTO created_edges (person_id, work_id) VALUES ('Q7251', 'Q189223');
 INSERT INTO created_edges (person_id, work_id) VALUES ('Q7251', 'Q197970');
-INSERT INTO created_edges (person_id, work_id) VALUES ('Q7251', 'Q309157');
 INSERT INTO created_edges (person_id, work_id) VALUES ('Q7251', 'Q2703890');
 INSERT INTO created_edges (person_id, work_id) VALUES ('Q7251', 'Q7661303');
 INSERT INTO created_edges (person_id, work_id) VALUES ('Q7251', 'Q1190223');
 INSERT INTO created_edges (person_id, work_id) VALUES ('Q7251', 'Q480476');
 INSERT INTO created_edges (person_id, work_id) VALUES ('Q7251', 'Q1191836');
 INSERT INTO created_edges (person_id, work_id) VALUES ('Q7251', 'Q1527413');
-INSERT INTO created_edges (person_id, work_id) VALUES ('Q7251', 'Q133854517');
 INSERT INTO created_edges (person_id, work_id) VALUES ('Q7251', 'Q309157');
 INSERT INTO created_edges (person_id, work_id) VALUES ('Q92741', 'Q309157');
 INSERT INTO created_edges (person_id, work_id) VALUES ('Q92741', 'Q4353569');

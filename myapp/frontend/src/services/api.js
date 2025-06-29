@@ -125,14 +125,25 @@ class ApiService {
         return response.data;
     }
 
-// Entity-Namen für Autocomplete suchen  
-    async searchEntityNames(entityType, searchTerm, db = 'memgraph') {
-        const response = await api.get(`/query/entities/search`, {
-            params: { type: entityType, q: searchTerm, db, limit: 10 }
+// 🔧 FIXED: Entity-Namen für Autocomplete suchen
+    async searchEntityNames(entityType, searchTerm = '', db = 'memgraph', limit = 100) {
+        // ✅ FIXED: Korrekte Route verwenden
+        const response = await api.get(`/entity/${entityType}/search`, {
+            params: {
+                q: searchTerm,  // Kann leer sein für "alle Entities" 
+                db,
+                limit
+            }
         });
         return response.data;
     }
 
+// 🆕 ZUSÄTZLICHE METHODE: Alle Entities eines Typs laden
+    async getAllEntitiesOfType(entityType, db = 'memgraph', limit = 100) {
+        // Leerer Suchterm = alle Entities
+        return this.searchEntityNames(entityType, '', db, limit);
+    }    
+    
 // Raw Query ausführen (falls später benötigt)
     async executeRawQuery(database, query, params = {}) {
         const response = await api.post('/query', {

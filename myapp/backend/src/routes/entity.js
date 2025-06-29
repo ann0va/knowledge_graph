@@ -1,4 +1,4 @@
-﻿// src/routes/entity.js - NEUE Universal Entity Route
+﻿// src/routes/entity.js - FIXED: Dropdown Support für alle Entities
 const express = require('express');
 
 module.exports = (repositoryFactory) => {
@@ -70,18 +70,11 @@ module.exports = (repositoryFactory) => {
         }
     });
 
-    // 🎯 GET /api/entity/:entityType/search - Suche in Entity-Type
+    // 🎯 GET /api/entity/:entityType/search - Suche in Entity-Type (FIXED für Dropdown)
     router.get('/:entityType/search', async (req, res) => {
         try {
             const { entityType } = req.params;
-            const { q: searchTerm, db = 'memgraph', limit = 20 } = req.query;
-
-            if (!searchTerm) {
-                return res.status(400).json({
-                    success: false,
-                    error: 'Search term (q) is required'
-                });
-            }
+            const { q: searchTerm, db = 'memgraph', limit = 100 } = req.query;
 
             if (!repositoryFactory.getAvailableEntityTypes().includes(entityType)) {
                 return res.status(400).json({
@@ -92,18 +85,42 @@ module.exports = (repositoryFactory) => {
             }
 
             const repo = repositoryFactory.getRepository(entityType, db);
-            const results = await repo.searchByName(searchTerm, parseInt(limit));
+            let results;
+
+            // 🔧 FIXED: Leerer Suchterm = alle Entities für Dropdown
+            if (!searchTerm || searchTerm.trim() === '') {
+                console.log(`🔍 Loading all ${entityType} entities for dropdown (limit: ${limit})`);
+                results = await repo.findAll(parseInt(limit));
+            } else {
+                console.log(`🔍 Searching ${entityType} for: "${searchTerm}"`);
+                results = await repo.searchByName(searchTerm, parseInt(limit));
+            }
+
+            // Namen für Frontend Dropdown extrahieren
+            const suggestions = results.map(entity => {
+                if (db === 'oracle') {
+                    return entity.NAME || entity.name;
+                } else {
+                    // Memgraph: verschiedene mögliche Formate
+                    return entity['e.name'] || entity.name || entity.title;
+                }
+            }).filter(name => name && name.trim() !== ''); // Nur gültige Namen
+
+            console.log(`📋 Extracted ${suggestions.length} entity names for dropdown`);
 
             res.json({
                 success: true,
                 data: {
-                    results,
+                    suggestions, // Frontend erwartet "suggestions" Array
+                    results: results, // Vollständige Daten falls benötigt
                     metadata: {
                         entityType,
                         database: db,
-                        searchTerm,
-                        count: results.length,
-                        limit: parseInt(limit)
+                        searchTerm: searchTerm || '(all)',
+                        count: suggestions.length,
+                        totalResults: results.length,
+                        limit: parseInt(limit),
+                        mode: searchTerm ? 'search' : 'all'
                     }
                 }
             });
@@ -112,7 +129,8 @@ module.exports = (repositoryFactory) => {
             console.error(`Error searching ${req.params.entityType}:`, error);
             res.status(500).json({
                 success: false,
-                error: error.message
+                error: error.message,
+                details: error.stack
             });
         }
     });
