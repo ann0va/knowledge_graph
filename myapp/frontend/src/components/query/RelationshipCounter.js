@@ -370,7 +370,6 @@ const RelationshipCounter = () => {
         <div className="space-y-6">
             <div className="bg-white rounded-lg border p-6">
                 <h3 className="text-lg font-semibold mb-4 flex items-center">
-                    <BarChart3 size={20} className="mr-2" />
                     📊 Beziehungen zählen
                 </h3>
 

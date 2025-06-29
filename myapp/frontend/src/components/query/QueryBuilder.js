@@ -17,28 +17,24 @@ const QueryBuilder = () => {
             id: 'find_related',
             label: '🔍 Verwandte Entitäten finden',
             desc: 'Finde Entitäten, die mit einer bestimmten Entität verbunden sind',
-            icon: Search,
             component: EntityFinder
         },
         {
             id: 'find_path',
             label: '🛤️ Pfad finden',
             desc: 'Finde einen Pfad zwischen zwei Entitäten',
-            icon: Route,
             component: PathFinder
         },
         {
             id: 'count_relations',
             label: '📊 Beziehungen zählen',
             desc: 'Zähle die Beziehungen einer Entität',
-            icon: BarChart3,
             component: RelationshipCounter
         },
         {
             id: 'browse_data',
             label: '📋 Datenbank durchsuchen',
             desc: 'Zeige alle verfügbaren Daten in beiden Datenbanken an',
-            icon: Database,
             component: DataViewer
         }
     ];
@@ -68,7 +64,6 @@ const QueryBuilder = () => {
                             }`}
                         >
                             <div className="font-medium text-sm flex items-center">
-                                <type.icon size={16} className="mr-2" />
                                 {type.label}
                             </div>
                             <div className="text-xs text-gray-500 mt-1">{type.desc}</div>
