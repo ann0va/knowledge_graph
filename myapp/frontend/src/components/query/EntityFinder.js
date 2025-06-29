@@ -33,7 +33,7 @@ const EntityFinder = () => {
             { id: 'WORKS_IN', label: 'arbeitet in Bereich', target: 'field' },
             { id: 'HAS_OCCUPATION', label: 'hat Beruf', target: 'occupation' },
             { id: 'RECEIVED', label: 'erhielt Auszeichnung', target: 'award' },
-            { id: 'BORN_IN', label: 'wurde geboren in', target: 'place' },
+            { id: 'BIRTH_IN', label: 'wurde geboren in', target: 'place' },
             { id: 'DIED_IN', label: 'starb in', target: 'place' },
             { id: 'WORKED_AT', label: 'arbeitete bei', target: 'workplace' },
             { id: 'CREATED', label: 'erschuf Werk', target: 'work' },
@@ -43,7 +43,6 @@ const EntityFinder = () => {
             { id: 'RELATIVE_OF', label: 'ist verwandt mit', target: 'person' },
             { id: 'INFLUENCED_BY', label: 'wurde beeinflusst von', target: 'person' },
             { id: 'SIGNIFICANT_FOR', label: 'war bedeutsam für', target: 'person' },
-            // ✅ FIXED: FATHER_OF und MOTHER_OF statt PARENT_OF
             { id: 'FATHER_OF', label: 'ist Vater von', target: 'person' },
             { id: 'MOTHER_OF', label: 'ist Mutter von', target: 'person' },
             { id: 'NATIONAL_OF', label: 'ist Staatsangehöriger von', target: 'place' }

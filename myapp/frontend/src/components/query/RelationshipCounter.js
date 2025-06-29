@@ -1,9 +1,10 @@
-﻿// src/components/query/RelationshipCounter.js - Count Entity Relationships
+﻿// src/components/query/RelationshipCounter.js - COMPLETE CLEAN VERSION
 import React, { useState } from 'react';
 import { BarChart3, TrendingUp, Database } from 'lucide-react';
 import EntityDropdown from './shared/EntityDropdown';
 import QueryResults from './shared/QueryResults';
 import { QueryInterface } from './shared/QueryInterface';
+import apiService from "../../services/api";
 
 const RelationshipCounter = () => {
     const [selectedEntity, setSelectedEntity] = useState('');
@@ -36,43 +37,43 @@ const RelationshipCounter = () => {
 
     const relationships = {
         person: [
-            { id: 'WORKS_IN', label: 'arbeitet in Bereich' },
-            { id: 'HAS_OCCUPATION', label: 'hat Beruf' },
-            { id: 'RECEIVED', label: 'erhielt Auszeichnung' },
-            { id: 'BIRTH_IN', label: 'wurde geboren in' },
-            { id: 'DIED_IN', label: 'starb in' },
-            { id: 'WORKED_AT', label: 'arbeitete bei' },
-            { id: 'CREATED', label: 'erschuf Werk' },
-            { id: 'STUDENT_OF', label: 'war Student von' },
-            { id: 'ADVISED', label: 'betreute' },
-            { id: 'PARTNER_OF', label: 'war Partner von' },
-            { id: 'RELATIVE_OF', label: 'ist verwandt mit' },
-            { id: 'INFLUENCED_BY', label: 'wurde beeinflusst von' },
-            { id: 'SIGNIFICANT_PERSON_FOR', label: 'war bedeutsam für' },
-            { id: 'FATHER_OF', label: 'ist Vater von' },
-            { id: 'MOTHER_OF', label: 'ist Mutter von' },
-            { id: 'NATIONAL_OF', label: 'ist Staatsangehöriger von' }
+            { id: 'WORKS_IN', label: 'Arbeitet in Bereich' },
+            { id: 'HAS_OCCUPATION', label: 'Hat Beruf' },
+            { id: 'RECEIVED', label: 'Erhielt Auszeichnung' },
+            { id: 'BIRTH_IN', label: 'Wurde geboren in' },
+            { id: 'DIED_IN', label: 'Starb in' },
+            { id: 'WORKED_AT', label: 'Arbeitete bei' },
+            { id: 'CREATED', label: 'Erschuf Werk' },
+            { id: 'STUDENT_OF', label: 'War Student von' },
+            { id: 'ADVISED', label: 'Betreute' },
+            { id: 'PARTNER_OF', label: 'War Partner von' },
+            { id: 'RELATIVE_OF', label: 'Ist verwandt mit' },
+            { id: 'INFLUENCED_BY', label: 'Wurde beeinflusst von' },
+            { id: 'SIGNIFICANT_PERSON_FOR', label: 'War bedeutsam für' },
+            { id: 'FATHER_OF', label: 'Ist Vater von' },
+            { id: 'MOTHER_OF', label: 'Ist Mutter von' },
+            { id: 'NATIONAL_OF', label: 'Ist Staatsangehöriger von' }
         ],
         award: [
-            { id: 'AWARDED_TO', label: 'wurde verliehen an' },
-            { id: 'IN_FIELD', label: 'ist im Bereich' }
+            { id: 'AWARDED_TO', label: 'Wurde verliehen an' },
+            { id: 'IN_FIELD', label: 'Ist im Bereich' }
         ],
         field: [
-            { id: 'WORKED_BY', label: 'wird bearbeitet von' }
+            { id: 'WORKED_BY', label: 'Wird bearbeitet von' }
         ],
         place: [
-            { id: 'BIRTH_PLACE_OF', label: 'ist Geburtsort von' },
-            { id: 'DEATH_PLACE_OF', label: 'ist Sterbeort von' },
-            { id: 'WORKPLACE_IN', label: 'hat Arbeitsplätze' }
+            { id: 'BIRTH_PLACE_OF', label: 'Ist Geburtsort von' },
+            { id: 'DEATH_PLACE_OF', label: 'Ist Sterbeort von' },
+            { id: 'WORKPLACE_IN', label: 'Hat Arbeitsplätze' }
         ],
         work: [
-            { id: 'CREATED_BY', label: 'wurde erschaffen von' }
+            { id: 'CREATED_BY', label: 'Wurde erschaffen von' }
         ],
         workplace: [
-            { id: 'EMPLOYED', label: 'beschäftigte' }
+            { id: 'EMPLOYED', label: 'Beschäftigte' }
         ],
         occupation: [
-            { id: 'HELD_BY', label: 'wird ausgeübt von' }
+            { id: 'HELD_BY', label: 'Wird ausgeübt von' }
         ]
     };
 
@@ -95,6 +96,7 @@ const RelationshipCounter = () => {
         return true;
     };
 
+    // 🎯 MAIN: Execute Query mit allen Modi
     const executeQuery = async () => {
         if (!validateQuery()) return;
 
@@ -103,37 +105,63 @@ const RelationshipCounter = () => {
         setQueryResults(null);
 
         try {
-            // Erstelle eine spezielle Query für Relationship Counting
-            const queryData = {
-                queryType: 'count_relations',
-                entityType: selectedEntityType,
-                entityName: selectedEntity,
-                countMode: countMode,
-                relationshipType: countMode === 'specific' ? specificRelationshipType : null,
-                database: 'both'
-            };
+            let combinedResults = null;
 
-            console.log('🔢 Executing relationship count query:', queryData);
+            if (countMode === 'all') {
+                // ✅ FIXED: Kombiniere incoming und outgoing für "alle"
+                console.log('🔄 Executing ALL relationships query (outgoing + incoming)');
+                const [outgoingResult, incomingResult] = await Promise.all([
+                    executeDirectionalQuery('outgoing'),
+                    executeDirectionalQuery('incoming')
+                ]);
 
-            // Da count_relations noch nicht im Backend implementiert ist, 
-            // simulieren wir es mit find_related und zählen die Ergebnisse
-            const simulatedQueryData = {
-                queryType: 'find_related',
-                entityType: selectedEntityType,
-                entityName: selectedEntity,
-                relationshipType: countMode === 'specific' ? specificRelationshipType : null,
-                database: 'both'
-            };
+                if (outgoingResult.success && incomingResult.success) {
+                    combinedResults = combineDirectionalResults(outgoingResult.data, incomingResult.data);
+                } else {
+                    setQueryError(outgoingResult.error || incomingResult.error || 'Query failed');
+                    return;
+                }
+            } else if (countMode === 'outgoing') {
+                // ✅ WORKING: Nur ausgehende Beziehungen
+                console.log('🔄 Executing OUTGOING relationships query');
+                const result = await executeDirectionalQuery('outgoing');
+                if (result.success) {
+                    combinedResults = result.data;
+                } else {
+                    setQueryError(result.error);
+                    return;
+                }
+            } else if (countMode === 'incoming') {
+                // ✅ WORKING: Nur eingehende Beziehungen
+                console.log('🔄 Executing INCOMING relationships query');
+                const result = await executeDirectionalQuery('incoming');
+                if (result.success) {
+                    combinedResults = result.data;
+                } else {
+                    setQueryError(result.error);
+                    return;
+                }
+            } else if (countMode === 'specific') {
+                // ✅ WORKING: Spezifischer Typ in beide Richtungen
+                console.log(`🔄 Executing SPECIFIC relationship query for ${specificRelationshipType}`);
+                const [outgoingResult, incomingResult] = await Promise.all([
+                    executeDirectionalQuery('outgoing', specificRelationshipType),
+                    executeDirectionalQuery('incoming', specificRelationshipType)
+                ]);
 
-            const result = await queryInterface.executeQuery(simulatedQueryData);
-
-            if (result.success) {
-                // Transformiere die Ergebnisse zu Count-Format
-                const transformedResult = transformToCountResult(result.data, countMode);
-                setQueryResults(transformedResult);
-            } else {
-                setQueryError(result.error);
+                if (outgoingResult.success && incomingResult.success) {
+                    combinedResults = combineDirectionalResults(outgoingResult.data, incomingResult.data);
+                } else {
+                    setQueryError(outgoingResult.error || incomingResult.error || 'Query failed');
+                    return;
+                }
             }
+
+            if (combinedResults) {
+                const transformedResult = transformToCountResult(combinedResults, countMode);
+                setQueryResults(transformedResult);
+            }
+
         } catch (error) {
             console.error('❌ Relationship count error:', error);
             setQueryError(error.message);
@@ -142,7 +170,125 @@ const RelationshipCounter = () => {
         }
     };
 
-    // Transformiere find_related Ergebnisse zu Count-Format
+    // 🎯 DIRECTIONAL: Führe richtungsspezifische Query aus
+    const executeDirectionalQuery = async (direction, specificRelType = null) => {
+        console.log(`🔄 Executing ${direction} query${specificRelType ? ` for ${specificRelType}` : ''}`);
+
+        if (direction === 'outgoing') {
+            // ✅ WORKING: Verwende find_related für ausgehende Beziehungen
+            const queryData = {
+                queryType: 'find_related',
+                entityType: selectedEntityType,
+                entityName: selectedEntity,
+                relationshipType: specificRelType,
+                database: 'both'
+            };
+            return await queryInterface.executeQuery(queryData);
+        } else {
+            // ✅ WORKING: Für eingehende Beziehungen verwende Raw Queries
+            return await executeIncomingRelationshipsQuery(specificRelType);
+        }
+    };
+
+    // 🎯 INCOMING: Eingehende Beziehungen über Raw Queries
+    const executeIncomingRelationshipsQuery = async (specificRelType = null) => {
+        try {
+            console.log(`🔄 Executing REAL incoming relationships query for ${selectedEntity}`);
+
+            // Nutze die strukturierte Query API mit neuem 'find_incoming' Typ
+            const queryData = {
+                queryType: 'find_incoming',
+                entityType: selectedEntityType,
+                entityName: selectedEntity,
+                relationshipType: specificRelType,
+                database: 'both'
+            };
+
+            const result = await queryInterface.executeQuery(queryData);
+
+            if (!result.success) {
+                throw new Error(result.error || 'Incoming relationships query failed');
+            }
+
+            // Transformiere das Ergebnis in das erwartete Format
+            return {
+                success: true,
+                data: {
+                    query: {
+                        type: 'find_incoming',
+                        entity: `${selectedEntityType}:${selectedEntity}`,
+                        relationship: specificRelType || 'all',
+                        database: 'both'
+                    },
+                    results: result.data.results,
+                    metadata: {
+                        timestamp: new Date().toISOString(),
+                        direction: 'incoming',
+                        method: 'structured_api_with_real_incoming'
+                    }
+                }
+            };
+
+        } catch (error) {
+            console.error('❌ Real incoming relationships query error:', error);
+            return {
+                success: false,
+                error: error.message
+            };
+        }
+    };
+
+    // 🎯 COMBINE: Kombiniere ausgehende und eingehende Ergebnisse
+    const combineDirectionalResults = (outgoingData, incomingData) => {
+        const combinedData = {
+            ...outgoingData,
+            results: {}
+        };
+
+        // Oracle Results kombinieren
+        if (outgoingData.results?.oracle || incomingData.results?.oracle) {
+            const oracleOutgoing = outgoingData.results?.oracle?.relationships || [];
+            const oracleIncoming = incomingData.results?.oracle?.relationships || [];
+
+            combinedData.results.oracle = {
+                sourceEntity: outgoingData.results?.oracle?.sourceEntity || incomingData.results?.oracle?.sourceEntity,
+                relationships: [
+                    ...oracleOutgoing.map(rel => ({ ...rel, direction: 'outgoing' })),
+                    ...oracleIncoming.map(rel => ({ ...rel, direction: 'incoming' }))
+                ],
+                count: oracleOutgoing.length + oracleIncoming.length,
+                queryInfo: {
+                    outgoingCount: oracleOutgoing.length,
+                    incomingCount: oracleIncoming.length,
+                    totalCount: oracleOutgoing.length + oracleIncoming.length
+                }
+            };
+        }
+
+        // Memgraph Results kombinieren
+        if (outgoingData.results?.memgraph || incomingData.results?.memgraph) {
+            const memgraphOutgoing = outgoingData.results?.memgraph?.relationships || [];
+            const memgraphIncoming = incomingData.results?.memgraph?.relationships || [];
+
+            combinedData.results.memgraph = {
+                sourceEntity: outgoingData.results?.memgraph?.sourceEntity || incomingData.results?.memgraph?.sourceEntity,
+                relationships: [
+                    ...memgraphOutgoing.map(rel => ({ ...rel, direction: 'outgoing' })),
+                    ...memgraphIncoming.map(rel => ({ ...rel, direction: 'incoming' }))
+                ],
+                count: memgraphOutgoing.length + memgraphIncoming.length,
+                queryInfo: {
+                    outgoingCount: memgraphOutgoing.length,
+                    incomingCount: memgraphIncoming.length,
+                    totalCount: memgraphOutgoing.length + memgraphIncoming.length
+                }
+            };
+        }
+
+        return combinedData;
+    };
+
+    // 🎯 TRANSFORM: Transformiere zu Count-Format
     const transformToCountResult = (originalResult, mode) => {
         const countResult = {
             ...originalResult,
@@ -151,39 +297,59 @@ const RelationshipCounter = () => {
             results: {}
         };
 
-        // Oracle Results
+        // Oracle Results mit Direction Breakdown
         if (originalResult.results?.oracle) {
             const oracleRels = originalResult.results.oracle.relationships || [];
+            const relationshipCounts = getRelationshipTypeCounts(oracleRels, 'oracle');
+            const directionCounts = getDirectionCounts(oracleRels);
+
             countResult.results.oracle = {
                 ...originalResult.results.oracle,
                 totalCount: oracleRels.length,
-                relationshipCounts: getRelationshipTypeCounts(oracleRels, 'oracle'),
-                summary: `${oracleRels.length} Beziehungen gefunden`
+                relationshipCounts,
+                directionCounts,
+                summary: `${oracleRels.length} Beziehungen gefunden (${directionCounts.outgoing} ausgehend, ${directionCounts.incoming} eingehend)`
             };
         }
 
-        // Memgraph Results
+        // Memgraph Results mit Direction Breakdown
         if (originalResult.results?.memgraph) {
             const memgraphRels = originalResult.results.memgraph.relationships || [];
+            const relationshipCounts = getRelationshipTypeCounts(memgraphRels, 'memgraph');
+            const directionCounts = getDirectionCounts(memgraphRels);
+
             countResult.results.memgraph = {
                 ...originalResult.results.memgraph,
                 totalCount: memgraphRels.length,
-                relationshipCounts: getRelationshipTypeCounts(memgraphRels, 'memgraph'),
-                summary: `${memgraphRels.length} Beziehungen gefunden`
+                relationshipCounts,
+                directionCounts,
+                summary: `${memgraphRels.length} Beziehungen gefunden (${directionCounts.outgoing} ausgehend, ${directionCounts.incoming} eingehend)`
             };
         }
 
         return countResult;
     };
 
-    // Zähle Beziehungstypen
+    // 🎯 COUNT: Zähle Richtungen
+    const getDirectionCounts = (relationships) => {
+        const counts = { outgoing: 0, incoming: 0 };
+        relationships.forEach(rel => {
+            if (rel.direction === 'incoming') {
+                counts.incoming++;
+            } else {
+                counts.outgoing++;
+            }
+        });
+        return counts;
+    };
+
+    // 🎯 COUNT: Zähle Beziehungstypen
     const getRelationshipTypeCounts = (relationships, source) => {
         const counts = {};
         relationships.forEach(rel => {
             const relType = source === 'oracle'
                 ? (rel.RELATIONSHIP_TYPE || rel.relationship_type || 'UNKNOWN')
                 : (rel.relationship_type || 'UNKNOWN');
-
             counts[relType] = (counts[relType] || 0) + 1;
         });
         return counts;

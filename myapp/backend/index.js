@@ -51,34 +51,9 @@ async function initializeServer() {
             console.log('\n📍 Verfügbare Endpoints:');
             console.log('   === Health & Status ===');
             console.log('   - GET  /api/health');
-            console.log('   - GET  /api/graph/health');
             console.log('');
-            console.log('   === Property Graph Management ===');
-            console.log('   - POST /api/graph/create');
-            console.log('   - DELETE /api/graph/:graphName');
-            console.log('   - GET  /api/graph/list');
-            console.log('   - GET  /api/graph/:graphName/stats');
-            console.log('   - GET  /api/graph/:graphName/visualization');
-            console.log('   - GET  /api/graph/:graphName/explore');
-            console.log('   - POST /api/graph/:graphName/query');
-            console.log('   - POST /api/graph/recreate');
             console.log('');
-            console.log('   === Entity APIs (Oracle + Memgraph) ===');
-            console.log('   - GET  /api/person');
-            console.log('   - GET  /api/person/:id');
-            console.log('   - GET  /api/person/:id/relationships');
-            console.log('   - POST /api/person');
-            console.log('   - GET  /api/place');
-            console.log('   - GET  /api/work');
-            console.log('   - GET  /api/award');
-            console.log('   - GET  /api/workplace');
-            console.log('   - GET  /api/field');
-            console.log('   - GET  /api/occupation');
-            console.log('');
-            console.log('   === Direct Queries ===');
-            console.log('   - POST /api/query');
             console.log('\n🎯 Quick Start:');
-            console.log(`   curl -X POST http://c017-master.infcs.de:${PORT}/api/graph/create`);
             console.log(`   curl http://c017-master.infcs.de:${PORT}/api/graph/health`);
         });
 
@@ -198,13 +173,7 @@ function setupRoutes() {
     app.use((req, res) => {
         res.status(404).json({
             success: false,
-            error: 'Endpoint nicht gefunden',
-            availableEndpoints: [
-                '/api/health',
-                '/api/graph/*',
-                '/api/person',
-                '/api/query'
-            ]
+            error: 'Endpoint nicht gefunden'
         });
     });
 

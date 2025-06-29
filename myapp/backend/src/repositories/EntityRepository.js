@@ -59,7 +59,7 @@ const ENTITY_CONFIGS = {
 
 // Verfügbare Relationship-Typen
 const RELATIONSHIP_TYPES = [
-    'WORKS_IN', 'BORN_IN', 'DIED_IN', 'EDUCATED_AT', 'WORKED_AT',
+    'WORKS_IN', 'BIRTH_IN', 'DIED_IN', 'EDUCATED_AT', 'WORKED_AT',
     'AWARDED', 'HAS_OCCUPATION', 'STUDIED', 'KNOWN_FOR', 'CITIZENSHIP'
 ];
 

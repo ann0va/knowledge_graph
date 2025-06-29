@@ -58,7 +58,9 @@ const QueryResults = ({ results, error, queryType }) => {
                             Oracle Ergebnisse
                             {queryType === 'count_relations' ?
                                 ` (${results.results.oracle.totalCount || 0})` :
-                                ` (${results.results.oracle.count || 0})`
+                                queryType === 'find_path' ?
+                                    ` (${results.results.oracle.pathsFound || 0})` :
+                                    ` (${results.results.oracle.count || 0})`
                             }
                         </h4>
 
@@ -83,7 +85,9 @@ const QueryResults = ({ results, error, queryType }) => {
                             Memgraph Ergebnisse
                             {queryType === 'count_relations' ?
                                 ` (${results.results.memgraph.totalCount || 0})` :
-                                ` (${results.results.memgraph.count || 0})`
+                                queryType === 'find_path' ?
+                                    ` (${results.results.memgraph.pathsFound || 0})` :
+                                    ` (${results.results.memgraph.count || 0})`
                             }
                         </h4>
 
@@ -228,17 +232,14 @@ const MemgraphCountResults = ({ data }) => {
     );
 };
 
-// Oracle Path Results
+// In OraclePathResults - Fix für "Pfad-Details verfügbar"
 const OraclePathResults = ({ data }) => {
-    const { paths, pathsFound, queryInfo } = data;
+    const { paths, pathsFound } = data;
 
     if (pathsFound === 0) {
         return (
             <div className="p-3 bg-gray-50 border border-gray-200 rounded text-gray-600 text-sm">
-                <div className="flex items-center">
-                    <AlertCircle size={16} className="mr-2" />
-                    ℹ️ {queryInfo?.message || 'Kein Pfad gefunden'}
-                </div>
+                ℹ️ Kein Pfad gefunden
             </div>
         );
     }
@@ -254,13 +255,14 @@ const OraclePathResults = ({ data }) => {
                         </span>
                     </div>
 
-                    {path.vertices && path.vertices.length > 0 ? (
+                    {/* ✅ NEU: Oracle Pfad-Details anzeigen */}
+                    {path.startName && path.endName ? (
                         <div className="text-xs">
-                            <strong>Knoten:</strong> {path.vertices.join(' → ')}
+                            <strong>Pfad:</strong> {path.startName} → {path.endName}
                         </div>
                     ) : (
                         <div className="text-xs text-gray-600">
-                            Pfad-Details verfügbar (Oracle PGQL Limitation)
+                            📊 Pfad gefunden (Details limitiert)
                         </div>
                     )}
                 </div>
