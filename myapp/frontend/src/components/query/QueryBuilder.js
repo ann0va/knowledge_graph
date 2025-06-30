@@ -1,13 +1,15 @@
 ﻿// =============================================================================
-// 5. 📁 src/components/query/QueryBuilder.js - MAIN INTERFACE (REFACTORED)
+// 📁 src/components/query/QueryBuilder.js - MAIN INTERFACE (REFACTORED with CREATE)
 // =============================================================================
 
 import React, { useState } from 'react';
-import { Search, Route, BarChart3, Database } from 'lucide-react';
+import { Search, Route, BarChart3, Database, Plus, Link } from 'lucide-react';
 import EntityFinder from './EntityFinder';
 import PathFinder from './PathFinder';
 import RelationshipCounter from './RelationshipCounter';
 import DataViewer from './DataViewer';
+import NodeCreator from './NodeCreator';
+import EdgeCreator from './EdgeCreator';
 
 const QueryBuilder = () => {
     const [activeQueryType, setActiveQueryType] = useState('find_related');
@@ -32,6 +34,18 @@ const QueryBuilder = () => {
             component: RelationshipCounter
         },
         {
+            id: 'create_node',
+            label: '➕ Knoten erstellen',
+            desc: 'Erstelle eine neue Entity in der Datenbank',
+            component: NodeCreator
+        },
+        {
+            id: 'create_edge',
+            label: '🔗 Beziehung erstellen',
+            desc: 'Verbinde zwei existierende Entities',
+            component: EdgeCreator
+        },
+        {
             id: 'browse_data',
             label: '📋 Datenbank durchsuchen',
             desc: 'Zeige alle verfügbaren Daten in beiden Datenbanken an',
@@ -52,7 +66,7 @@ const QueryBuilder = () => {
             {/* Query Type Selection */}
             <div className="bg-white rounded-lg border p-6">
                 <h3 className="text-lg font-semibold mb-4">Query-Typ auswählen</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {queryTypes.map(type => (
                         <div
                             key={type.id}

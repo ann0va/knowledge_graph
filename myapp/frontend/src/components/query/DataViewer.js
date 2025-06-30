@@ -36,7 +36,7 @@ const DataViewer = () => {
                 try {
                     const data = await apiService.getEntities(entityType, {
                         source: 'both',
-                        limit: 50
+                        limit: 200
                     });
 
                     // Debug: Log die API Response
@@ -290,7 +290,7 @@ const DataViewer = () => {
                     </tr>
                     </thead>
                     <tbody>
-                    {items.slice(0, 10).map((item, idx) => {
+                    {items.slice(0, 50).map((item, idx) => {
                         const wikidataId = extractWikidataId(item, source);
                         return (
                             <tr key={idx} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
@@ -322,9 +322,9 @@ const DataViewer = () => {
                     })}
                     </tbody>
                 </table>
-                {items.length > 10 && (
+                {items.length > 50 && (
                     <div className="text-xs text-gray-500 p-3 bg-gray-50 text-center">
-                        <strong>... und {items.length - 10} weitere Einträge</strong>
+                        <strong>... und {items.length - 50} weitere Einträge</strong>
                     </div>
                 )}
             </div>
