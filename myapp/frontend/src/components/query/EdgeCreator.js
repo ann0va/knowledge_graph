@@ -334,6 +334,8 @@ const EdgeCreator = () => {
                             value={sourceEntityName}
                             onChange={setSourceEntityName}
                             entityType={sourceEntityType}
+                            database="both"
+                            showDatabaseIndicator={true}
                             placeholder={`Select ${sourceEntityType}...`}
                         />
                     </div>
@@ -377,6 +379,8 @@ const EdgeCreator = () => {
                             value={targetEntityName}
                             onChange={setTargetEntityName}
                             entityType={targetEntityType}
+                            database="both"
+                            showDatabaseIndicator={true}
                             placeholder={`Select ${targetEntityType}...`}
                         />
                     </div>
