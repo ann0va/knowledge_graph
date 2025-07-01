@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+         http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>com.example.pgql</groupId>
+    <artifactId>turing-pgql-graph</artifactId>
+    <version>1.0-SNAPSHOT</version>
+
+    <properties>
+        <maven.compiler.source>15</maven.compiler.source>
+        <maven.compiler.target>15</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    </properties>
+
+    <!-- Repositories für Oracle Graph Client Dependencies -->
+    <repositories>
+        <repository>
+            <id>central</id>
+            <name>Maven Central</name>
+            <url>https://repo1.maven.org/maven2</url>
+        </repository>
+        <repository>
+            <id>spoofax</id>
+            <name>Spoofax Language Workbench</name>
+            <url>https://artifacts.metaborg.org/content/repositories/releases</url>
+        </repository>
+    </repositories>
+
+    <dependencies>
+        <!-- Oracle Graph Client für PGQL -->
+        <dependency>
+            <groupId>com.oracle.database.graph</groupId>
+            <artifactId>opg-client</artifactId>
+            <version>24.1.0</version>
+        </dependency>
+
+        <!-- Oracle JDBC Driver -->
+        <dependency>
+            <groupId>com.oracle.database.jdbc</groupId>
+            <artifactId>ojdbc11</artifactId>
+            <version>23.4.0.24.05</version>
+        </dependency>
+
+        <!-- Optional: Für erweiterte PGQL Features -->
+        <dependency>
+            <groupId>com.oracle.database.graph</groupId>
+            <artifactId>opg-pgql-jdbc</artifactId>
+            <version>24.1.0</version>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.11.0</version>
+                <configuration>
+                    <source>15</source>
+                    <target>15</target>
+                    <encoding>UTF-8</encoding>
+                </configuration>
+            </plugin>
+
+            <!-- Plugin zum Ausführen der Main-Klasse -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>3.1.0</version>
+                <configuration>
+                    <mainClass>com.example.OraclePgqlGraphTest</mainClass>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>

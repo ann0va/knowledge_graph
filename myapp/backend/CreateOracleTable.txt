@@ -1,0 +1,405 @@
+-- Memgraph zu Oracle Property Graph Konvertierung (KORRIGIERT)
+-- Generiert am: 2025-01-13T17:00:00.000Z
+-- Nodes: 133, Relationships: 194
+-- WICHTIG: Alle IDs sind jetzt konsistent als Wikidata-IDs
+
+-- ============================================
+-- CREATE TABLE STATEMENTS
+-- ============================================
+
+-- Vertex-Tabellen
+CREATE TABLE awards (id VARCHAR2(20) PRIMARY KEY, name VARCHAR2(500));
+CREATE TABLE fields (id VARCHAR2(20) PRIMARY KEY, name VARCHAR2(200));
+CREATE TABLE occupations (id VARCHAR2(20) PRIMARY KEY, name VARCHAR2(200));
+CREATE TABLE persons (id VARCHAR2(20) PRIMARY KEY, name VARCHAR2(200), birth_date DATE, death_date DATE, gender VARCHAR2(10), description VARCHAR2(500));
+CREATE TABLE places (id VARCHAR2(20) PRIMARY KEY, name VARCHAR2(200), type VARCHAR2(50));
+CREATE TABLE workplaces (id VARCHAR2(20) PRIMARY KEY, name VARCHAR2(300), type VARCHAR2(50));
+CREATE TABLE works (id VARCHAR2(20) PRIMARY KEY, name VARCHAR2(500), type VARCHAR2(50));
+
+-- Edge-Tabellen
+CREATE TABLE advised_edges (advisor_id VARCHAR2(20), advisee_id VARCHAR2(20));
+CREATE TABLE father_edges (father_id VARCHAR2(20), child_id VARCHAR2(20));
+CREATE TABLE mother_edges (mother_id VARCHAR2(20), child_id VARCHAR2(20));
+CREATE TABLE influence_edges (influenced_id VARCHAR2(20), influencer_id VARCHAR2(20));
+CREATE TABLE partner_edges (person1_id VARCHAR2(20), person2_id VARCHAR2(20));
+CREATE TABLE received_edges (person_id VARCHAR2(20), award_id VARCHAR2(20));
+CREATE TABLE birth_in_edges (person_id VARCHAR2(20), place_id VARCHAR2(20));
+CREATE TABLE works_in_edges (person_id VARCHAR2(20), field_id VARCHAR2(20));
+CREATE TABLE national_of_edges (person_id VARCHAR2(20), place_id VARCHAR2(20));
+CREATE TABLE has_occupation_edges (person_id VARCHAR2(20), occupation_id VARCHAR2(20));
+CREATE TABLE worked_at_edges (person_id VARCHAR2(20), workplace_id VARCHAR2(20));
+CREATE TABLE relative_edges (person1_id VARCHAR2(20), person2_id VARCHAR2(20));
+CREATE TABLE significant_person_edges (significant_person_id VARCHAR2(20), for_person_id VARCHAR2(20));
+CREATE TABLE student_of_edges (student_id VARCHAR2(20), teacher_id VARCHAR2(20));
+CREATE TABLE created_edges (person_id VARCHAR2(20), work_id VARCHAR2(20));
+CREATE TABLE died_in_edges (person_id VARCHAR2(20), place_id VARCHAR2(20));
+
+-- ============================================
+-- VERTEX INSERT STATEMENTS (Wikidata-IDs)
+-- ============================================
+
+-- AWARDS (15 Einträge)
+INSERT INTO awards (id, name) VALUES ('Q15631401', 'Fellow of the Royal Society');
+INSERT INTO awards (id, name) VALUES ('Q10762848', 'Officer of the Order of the British Empire');
+INSERT INTO awards (id, name) VALUES ('Q1690167', 'Smith''s Prize');
+INSERT INTO awards (id, name) VALUES ('Q14420', 'Order of the British Empire');
+INSERT INTO awards (id, name) VALUES ('Q4363133', 'Computer Pioneer Award');
+INSERT INTO awards (id, name) VALUES ('Q61744587', 'Fellow of the American Statistical Association');
+INSERT INTO awards (id, name) VALUES ('Q59767712', 'Fellow of the Institute of Mathematical Statistics');
+INSERT INTO awards (id, name) VALUES ('Q1316544', 'Guggenheim Fellowship');
+INSERT INTO awards (id, name) VALUES ('Q23070437', 'Rolf Schock Prize in Logic and Philosophy');
+INSERT INTO awards (id, name) VALUES ('Q253936', 'Fulbright Scholarship');
+INSERT INTO awards (id, name) VALUES ('Q1543268', 'MacArthur Fellows Program');
+INSERT INTO awards (id, name) VALUES ('Q1460659', 'Friedrich L. Bauer Prize');
+INSERT INTO awards (id, name) VALUES ('Q61744980', 'Fellow of the American Mathematical Society');
+INSERT INTO awards (id, name) VALUES ('Q52382875', 'Fellow of the American Academy of Arts and Sciences');
+INSERT INTO awards (id, name) VALUES ('Q20853411', 'Knight of the Order of Merit of the Republic of Poland');
+
+-- FIELDS (22 Einträge)
+INSERT INTO fields (id, name) VALUES ('Q897511', 'cryptanalysis');
+INSERT INTO fields (id, name) VALUES ('Q21198', 'computer science');
+INSERT INTO fields (id, name) VALUES ('Q395', 'mathematics');
+INSERT INTO fields (id, name) VALUES ('Q8078', 'logic');
+INSERT INTO fields (id, name) VALUES ('Q8789', 'cryptography');
+INSERT INTO fields (id, name) VALUES ('Q1166618', 'mathematical logic');
+INSERT INTO fields (id, name) VALUES ('Q2878974', 'theoretical computer science');
+INSERT INTO fields (id, name) VALUES ('Q818930', 'computability theory');
+INSERT INTO fields (id, name) VALUES ('Q12483', 'statistics');
+INSERT INTO fields (id, name) VALUES ('Q338', 'cosmology');
+INSERT INTO fields (id, name) VALUES ('Q943303', 'contemporary philosophy');
+INSERT INTO fields (id, name) VALUES ('Q842333', 'Western philosophy');
+INSERT INTO fields (id, name) VALUES ('Q183216', 'analytic philosophy');
+INSERT INTO fields (id, name) VALUES ('Q484761', 'philosophy of language');
+INSERT INTO fields (id, name) VALUES ('Q35277', 'metaphysics');
+INSERT INTO fields (id, name) VALUES ('Q12482', 'set theory');
+INSERT INTO fields (id, name) VALUES ('Q9471', 'epistemology');
+INSERT INTO fields (id, name) VALUES ('Q23407', 'philosophy of mind');
+INSERT INTO fields (id, name) VALUES ('Q5891', 'philosophy');
+INSERT INTO fields (id, name) VALUES ('Q210841', 'modal logic');
+INSERT INTO fields (id, name) VALUES ('Q413', 'physics');
+INSERT INTO fields (id, name) VALUES ('Q80993', 'software engineering');
+
+-- OCCUPATIONS (22 Einträge)
+INSERT INTO occupations (id, name) VALUES ('Q82594', 'computer scientist');
+INSERT INTO occupations (id, name) VALUES ('Q170790', 'mathematician');
+INSERT INTO occupations (id, name) VALUES ('Q1622272', 'university teacher');
+INSERT INTO occupations (id, name) VALUES ('Q15442776', 'cryptographer');
+INSERT INTO occupations (id, name) VALUES ('Q14565331', 'logician');
+INSERT INTO occupations (id, name) VALUES ('Q2732142', 'statistician');
+INSERT INTO occupations (id, name) VALUES ('Q13382460', 'marathon runner');
+INSERT INTO occupations (id, name) VALUES ('Q15976092', 'artificial intelligence researcher');
+INSERT INTO occupations (id, name) VALUES ('Q4964182', 'philosopher');
+INSERT INTO occupations (id, name) VALUES ('Q36180', 'writer');
+INSERT INTO occupations (id, name) VALUES ('Q48282', 'student');
+INSERT INTO occupations (id, name) VALUES ('Q169470', 'physicist');
+INSERT INTO occupations (id, name) VALUES ('Q715679', 'patent inventor');
+INSERT INTO occupations (id, name) VALUES ('Q43845', 'businessperson');
+INSERT INTO occupations (id, name) VALUES ('Q6051619', 'opinion journalist');
+INSERT INTO occupations (id, name) VALUES ('Q215536', 'merchant');
+INSERT INTO occupations (id, name) VALUES ('Q15077007', 'podcaster');
+INSERT INTO occupations (id, name) VALUES ('Q17486330', 'historian of mathematics');
+INSERT INTO occupations (id, name) VALUES ('Q864380', 'biographer');
+INSERT INTO occupations (id, name) VALUES ('Q15143191', 'science communicator');
+INSERT INTO occupations (id, name) VALUES ('Q40348', 'lawyer');
+INSERT INTO occupations (id, name) VALUES ('Q1709010', 'software engineer');
+
+-- PERSONS (13 Einträge)
+INSERT INTO persons (id, name, birth_date, death_date, gender, description) VALUES ('Q7251', 'Alan Turing', TO_DATE('06/23/1912', 'MM/DD/YYYY'), TO_DATE('06/07/1954', 'MM/DD/YYYY'), 'Male', 'English computer scientist');
+INSERT INTO persons (id, name, birth_date, death_date, gender, description) VALUES ('Q16493', 'Beatrice Helen Worsley', TO_DATE('10/18/1921', 'MM/DD/YYYY'), TO_DATE('05/08/1972', 'MM/DD/YYYY'), 'Female', 'first female computer scientist in Canada');
+INSERT INTO persons (id, name, birth_date, death_date, gender, description) VALUES ('Q92741', 'Alonzo Church', TO_DATE('06/14/1903', 'MM/DD/YYYY'), TO_DATE('08/11/1995', 'MM/DD/YYYY'), 'Male', 'American mathematician and logician');
+INSERT INTO persons (id, name, birth_date, death_date, gender, description) VALUES ('Q249984', 'Robin Gandy', TO_DATE('09/22/1919', 'MM/DD/YYYY'), TO_DATE('11/20/1995', 'MM/DD/YYYY'), 'Male', 'British mathematician and logician');
+INSERT INTO persons (id, name, birth_date, death_date, gender, description) VALUES ('Q20895930', 'Julius Mathison Turing', TO_DATE('11/09/1873', 'MM/DD/YYYY'), TO_DATE('08/03/1947', 'MM/DD/YYYY'), 'Male', 'father of Alan Turing, English mathematician');
+INSERT INTO persons (id, name, birth_date, death_date, gender, description) VALUES ('Q20895935', 'Ethel Sara Stoney', TO_DATE('11/18/1881', 'MM/DD/YYYY'), TO_DATE('03/06/1976', 'MM/DD/YYYY'), 'Female', 'mother of Alan Turing, English mathematician');
+INSERT INTO persons (id, name, birth_date, death_date, gender, description) VALUES ('Q21693479', 'Christopher Morcom', TO_DATE('07/13/1911', 'MM/DD/YYYY'), TO_DATE('02/13/1930', 'MM/DD/YYYY'), 'Male', 'British scientist');
+INSERT INTO persons (id, name, birth_date, death_date, gender, description) VALUES ('Q224372', 'I. J. Good', TO_DATE('12/09/1916', 'MM/DD/YYYY'), TO_DATE('04/05/2009', 'MM/DD/YYYY'), 'Male', 'British statistician and cryptographer');
+INSERT INTO persons (id, name, birth_date, death_date, gender, description) VALUES ('Q298521', 'Saul Kripke', TO_DATE('11/13/1940', 'MM/DD/YYYY'), TO_DATE('09/15/2022', 'MM/DD/YYYY'), 'Male', 'American philosopher and logician');
+INSERT INTO persons (id, name, birth_date, death_date, gender, description) VALUES ('Q310798', 'Stephen Wolfram', TO_DATE('08/29/1959', 'MM/DD/YYYY'), NULL, 'Male', 'British-American scientist and businessman');
+INSERT INTO persons (id, name, birth_date, death_date, gender, description) VALUES ('Q450154', 'Andrew Hodges', TO_DATE('01/01/1949', 'MM/DD/YYYY'), NULL, 'Male', 'mathematician and popular science author');
+INSERT INTO persons (id, name, birth_date, death_date, gender, description) VALUES ('Q43075535', 'Dermot Turing', TO_DATE('02/26/1961', 'MM/DD/YYYY'), NULL, 'Male', 'British solicitor and author');
+INSERT INTO persons (id, name, birth_date, death_date, gender, description) VALUES ('Q59884129', 'Cicely Popplewell', TO_DATE('10/29/1920', 'MM/DD/YYYY'), TO_DATE('06/20/1995', 'MM/DD/YYYY'), 'Female', 'British software engineer');
+
+-- PLACES (19 Einträge)
+INSERT INTO places (id, name, type) VALUES ('Q122744', 'Maida Vale', 'Place');
+INSERT INTO places (id, name, type) VALUES ('Q2011497', 'Wilmslow', 'Place');
+INSERT INTO places (id, name, type) VALUES ('Q145', 'United Kingdom', 'Place');
+INSERT INTO places (id, name, type) VALUES ('Q2917451', 'Querétaro', 'Place');
+INSERT INTO places (id, name, type) VALUES ('Q639408', 'Waterloo', 'Place');
+INSERT INTO places (id, name, type) VALUES ('Q16', 'Canada', 'Place');
+INSERT INTO places (id, name, type) VALUES ('Q61', 'Washington, D.C.', 'Place');
+INSERT INTO places (id, name, type) VALUES ('Q579848', 'Hudson', 'Place');
+INSERT INTO places (id, name, type) VALUES ('Q30', 'United States', 'Place');
+INSERT INTO places (id, name, type) VALUES ('Q2304852', 'Rotherfield Peppard', 'Place');
+INSERT INTO places (id, name, type) VALUES ('Q34217', 'Oxford', 'Place');
+INSERT INTO places (id, name, type) VALUES ('Q1661840', 'Podanur', 'Place');
+INSERT INTO places (id, name, type) VALUES ('Q23287', 'West Sussex', 'Place');
+INSERT INTO places (id, name, type) VALUES ('Q84', 'London', 'Place');
+INSERT INTO places (id, name, type) VALUES ('Q586070', 'Radford', 'Place');
+INSERT INTO places (id, name, type) VALUES ('Q384692', 'Bay Shore', 'Place');
+INSERT INTO places (id, name, type) VALUES ('Q60', 'New York City', 'Place');
+INSERT INTO places (id, name, type) VALUES ('Q18655', 'Stockport', 'Place');
+INSERT INTO places (id, name, type) VALUES ('Q971223', 'Buxton', 'Place');
+
+-- WORKPLACES (15 Einträge)
+INSERT INTO workplaces (id, name, type) VALUES ('Q867530', 'Victoria University of Manchester', 'Institution');
+INSERT INTO workplaces (id, name, type) VALUES ('Q220798', 'Government Communications Headquarters', 'Institution');
+INSERT INTO workplaces (id, name, type) VALUES ('Q35794', 'University of Cambridge', 'Institution');
+INSERT INTO workplaces (id, name, type) VALUES ('Q1967606', 'National Physical Laboratory', 'Institution');
+INSERT INTO workplaces (id, name, type) VALUES ('Q180865', 'University of Toronto', 'Institution');
+INSERT INTO workplaces (id, name, type) VALUES ('Q1420038', 'Queen''s University', 'Institution');
+INSERT INTO workplaces (id, name, type) VALUES ('Q21578', 'Princeton University', 'Institution');
+INSERT INTO workplaces (id, name, type) VALUES ('Q174710', 'University of California, Los Angeles', 'Institution');
+INSERT INTO workplaces (id, name, type) VALUES ('Q155921', 'Bletchley Park', 'Institution');
+INSERT INTO workplaces (id, name, type) VALUES ('Q65379', 'Virginia Tech', 'Institution');
+INSERT INTO workplaces (id, name, type) VALUES ('Q230899', 'University of Manchester', 'Institution');
+INSERT INTO workplaces (id, name, type) VALUES ('Q4683781', 'Admiralty Research Laboratory', 'Institution');
+INSERT INTO workplaces (id, name, type) VALUES ('Q1665138', 'Institute for Defense Analyses', 'Institution');
+INSERT INTO workplaces (id, name, type) VALUES ('Q73079', 'Trinity College', 'Institution');
+INSERT INTO workplaces (id, name, type) VALUES ('Q1024543', 'CUNY Graduate School and University Center', 'Institution');
+
+-- WORKS (25 Einträge)
+INSERT INTO works (id, name, type) VALUES ('Q20895949', 'On Computable Numbers, with an Application to the Entscheidungsproblem', 'NotableWork');
+INSERT INTO works (id, name, type) VALUES ('Q772056', 'Computing Machinery and Intelligence', 'NotableWork');
+INSERT INTO works (id, name, type) VALUES ('Q20895966', 'Intelligent Machinery', 'NotableWork');
+INSERT INTO works (id, name, type) VALUES ('Q622849', 'halting problem', 'NotableWork');
+INSERT INTO works (id, name, type) VALUES ('Q163310', 'Turing machine', 'NotableWork');
+INSERT INTO works (id, name, type) VALUES ('Q189223', 'Turing test', 'NotableWork');
+INSERT INTO works (id, name, type) VALUES ('Q197970', 'Turing completeness', 'NotableWork');
+INSERT INTO works (id, name, type) VALUES ('Q309157', 'Church–Turing thesis', 'NotableWork');
+INSERT INTO works (id, name, type) VALUES ('Q2703890', 'universal Turing machine', 'NotableWork');
+INSERT INTO works (id, name, type) VALUES ('Q7661303', 'Symmetric Turing machine', 'NotableWork');
+INSERT INTO works (id, name, type) VALUES ('Q1190223', 'non-deterministic Turing machine', 'NotableWork');
+INSERT INTO works (id, name, type) VALUES ('Q480476', 'Bombe', 'NotableWork');
+INSERT INTO works (id, name, type) VALUES ('Q1191836', 'probabilistic Turing machine', 'NotableWork');
+INSERT INTO works (id, name, type) VALUES ('Q1527413', 'Turing degree', 'NotableWork');
+INSERT INTO works (id, name, type) VALUES ('Q4353569', 'Church–Turing–Deutsch principle', 'NotableWork');
+INSERT INTO works (id, name, type) VALUES ('Q5501323', 'Frege–Church ontology', 'NotableWork');
+INSERT INTO works (id, name, type) VALUES ('Q1308502', 'Church–Rosser theorem', 'NotableWork');
+INSERT INTO works (id, name, type) VALUES ('Q18212353', 'Church–Turing theorem', 'NotableWork');
+INSERT INTO works (id, name, type) VALUES ('Q242028', 'lambda calculus', 'NotableWork');
+INSERT INTO works (id, name, type) VALUES ('Q5583769', 'Good–Turing frequency estimation', 'NotableWork');
+INSERT INTO works (id, name, type) VALUES ('Q501747', 'Naming and Necessity', 'NotableWork');
+INSERT INTO works (id, name, type) VALUES ('Q15241057', 'Wolfram Language', 'NotableWork');
+INSERT INTO works (id, name, type) VALUES ('Q2987018', 'A New Kind of Science', 'NotableWork');
+INSERT INTO works (id, name, type) VALUES ('Q81294', 'Mathematica', 'NotableWork');
+INSERT INTO works (id, name, type) VALUES ('Q34308373', 'Alan Turing: The Enigma', 'NotableWork');
+
+-- ============================================
+-- EDGE INSERT STATEMENTS (KORRIGIERT - Wikidata-IDs)
+-- ============================================
+
+-- RECEIVED_EDGES (RECEIVED: 16 Einträge)
+INSERT INTO received_edges (person_id, award_id) VALUES ('Q7251', 'Q15631401');
+INSERT INTO received_edges (person_id, award_id) VALUES ('Q7251', 'Q10762848');
+INSERT INTO received_edges (person_id, award_id) VALUES ('Q7251', 'Q1690167');
+INSERT INTO received_edges (person_id, award_id) VALUES ('Q7251', 'Q14420');
+INSERT INTO received_edges (person_id, award_id) VALUES ('Q224372', 'Q1690167');
+INSERT INTO received_edges (person_id, award_id) VALUES ('Q224372', 'Q4363133');
+INSERT INTO received_edges (person_id, award_id) VALUES ('Q224372', 'Q61744587');
+INSERT INTO received_edges (person_id, award_id) VALUES ('Q224372', 'Q59767712');
+INSERT INTO received_edges (person_id, award_id) VALUES ('Q298521', 'Q1316544');
+INSERT INTO received_edges (person_id, award_id) VALUES ('Q298521', 'Q23070437');
+INSERT INTO received_edges (person_id, award_id) VALUES ('Q298521', 'Q253936');
+INSERT INTO received_edges (person_id, award_id) VALUES ('Q310798', 'Q1543268');
+INSERT INTO received_edges (person_id, award_id) VALUES ('Q310798', 'Q1460659');
+INSERT INTO received_edges (person_id, award_id) VALUES ('Q310798', 'Q61744980');
+INSERT INTO received_edges (person_id, award_id) VALUES ('Q310798', 'Q52382875');
+INSERT INTO received_edges (person_id, award_id) VALUES ('Q43075535', 'Q20853411');
+
+-- WORKS_IN_EDGES (WORKS_IN: 31 Einträge)
+INSERT INTO works_in_edges (person_id, field_id) VALUES ('Q7251', 'Q897511');
+INSERT INTO works_in_edges (person_id, field_id) VALUES ('Q7251', 'Q21198');
+INSERT INTO works_in_edges (person_id, field_id) VALUES ('Q7251', 'Q395');
+INSERT INTO works_in_edges (person_id, field_id) VALUES ('Q7251', 'Q8078');
+INSERT INTO works_in_edges (person_id, field_id) VALUES ('Q7251', 'Q8789');
+INSERT INTO works_in_edges (person_id, field_id) VALUES ('Q92741', 'Q395');
+INSERT INTO works_in_edges (person_id, field_id) VALUES ('Q92741', 'Q8078');
+INSERT INTO works_in_edges (person_id, field_id) VALUES ('Q92741', 'Q1166618');
+INSERT INTO works_in_edges (person_id, field_id) VALUES ('Q92741', 'Q2878974');
+INSERT INTO works_in_edges (person_id, field_id) VALUES ('Q249984', 'Q395');
+INSERT INTO works_in_edges (person_id, field_id) VALUES ('Q249984', 'Q8078');
+INSERT INTO works_in_edges (person_id, field_id) VALUES ('Q249984', 'Q1166618');
+INSERT INTO works_in_edges (person_id, field_id) VALUES ('Q249984', 'Q818930');
+INSERT INTO works_in_edges (person_id, field_id) VALUES ('Q224372', 'Q8789');
+INSERT INTO works_in_edges (person_id, field_id) VALUES ('Q224372', 'Q12483');
+INSERT INTO works_in_edges (person_id, field_id) VALUES ('Q224372', 'Q338');
+INSERT INTO works_in_edges (person_id, field_id) VALUES ('Q298521', 'Q8078');
+INSERT INTO works_in_edges (person_id, field_id) VALUES ('Q298521', 'Q943303');
+INSERT INTO works_in_edges (person_id, field_id) VALUES ('Q298521', 'Q842333');
+INSERT INTO works_in_edges (person_id, field_id) VALUES ('Q298521', 'Q183216');
+INSERT INTO works_in_edges (person_id, field_id) VALUES ('Q298521', 'Q484761');
+INSERT INTO works_in_edges (person_id, field_id) VALUES ('Q298521', 'Q35277');
+INSERT INTO works_in_edges (person_id, field_id) VALUES ('Q298521', 'Q12482');
+INSERT INTO works_in_edges (person_id, field_id) VALUES ('Q298521', 'Q9471');
+INSERT INTO works_in_edges (person_id, field_id) VALUES ('Q298521', 'Q23407');
+INSERT INTO works_in_edges (person_id, field_id) VALUES ('Q298521', 'Q5891');
+INSERT INTO works_in_edges (person_id, field_id) VALUES ('Q298521', 'Q210841');
+INSERT INTO works_in_edges (person_id, field_id) VALUES ('Q310798', 'Q21198');
+INSERT INTO works_in_edges (person_id, field_id) VALUES ('Q310798', 'Q395');
+INSERT INTO works_in_edges (person_id, field_id) VALUES ('Q310798', 'Q413');
+INSERT INTO works_in_edges (person_id, field_id) VALUES ('Q59884129', 'Q80993');
+
+-- HAS_OCCUPATION_EDGES (HAS_OCCUPATION: 48 Einträge)
+INSERT INTO has_occupation_edges (person_id, occupation_id) VALUES ('Q7251', 'Q82594');
+INSERT INTO has_occupation_edges (person_id, occupation_id) VALUES ('Q7251', 'Q170790');
+INSERT INTO has_occupation_edges (person_id, occupation_id) VALUES ('Q7251', 'Q1622272');
+INSERT INTO has_occupation_edges (person_id, occupation_id) VALUES ('Q7251', 'Q15442776');
+INSERT INTO has_occupation_edges (person_id, occupation_id) VALUES ('Q7251', 'Q14565331');
+INSERT INTO has_occupation_edges (person_id, occupation_id) VALUES ('Q7251', 'Q2732142');
+INSERT INTO has_occupation_edges (person_id, occupation_id) VALUES ('Q7251', 'Q13382460');
+INSERT INTO has_occupation_edges (person_id, occupation_id) VALUES ('Q7251', 'Q15976092');
+INSERT INTO has_occupation_edges (person_id, occupation_id) VALUES ('Q16493', 'Q82594');
+INSERT INTO has_occupation_edges (person_id, occupation_id) VALUES ('Q92741', 'Q82594');
+INSERT INTO has_occupation_edges (person_id, occupation_id) VALUES ('Q92741', 'Q170790');
+INSERT INTO has_occupation_edges (person_id, occupation_id) VALUES ('Q92741', 'Q1622272');
+INSERT INTO has_occupation_edges (person_id, occupation_id) VALUES ('Q92741', 'Q4964182');
+INSERT INTO has_occupation_edges (person_id, occupation_id) VALUES ('Q249984', 'Q170790');
+INSERT INTO has_occupation_edges (person_id, occupation_id) VALUES ('Q249984', 'Q1622272');
+INSERT INTO has_occupation_edges (person_id, occupation_id) VALUES ('Q249984', 'Q4964182');
+INSERT INTO has_occupation_edges (person_id, occupation_id) VALUES ('Q20895935', 'Q36180');
+INSERT INTO has_occupation_edges (person_id, occupation_id) VALUES ('Q21693479', 'Q48282');
+INSERT INTO has_occupation_edges (person_id, occupation_id) VALUES ('Q224372', 'Q82594');
+INSERT INTO has_occupation_edges (person_id, occupation_id) VALUES ('Q224372', 'Q170790');
+INSERT INTO has_occupation_edges (person_id, occupation_id) VALUES ('Q224372', 'Q1622272');
+INSERT INTO has_occupation_edges (person_id, occupation_id) VALUES ('Q224372', 'Q15442776');
+INSERT INTO has_occupation_edges (person_id, occupation_id) VALUES ('Q224372', 'Q2732142');
+INSERT INTO has_occupation_edges (person_id, occupation_id) VALUES ('Q224372', 'Q15976092');
+INSERT INTO has_occupation_edges (person_id, occupation_id) VALUES ('Q224372', 'Q4964182');
+INSERT INTO has_occupation_edges (person_id, occupation_id) VALUES ('Q298521', 'Q170790');
+INSERT INTO has_occupation_edges (person_id, occupation_id) VALUES ('Q298521', 'Q1622272');
+INSERT INTO has_occupation_edges (person_id, occupation_id) VALUES ('Q298521', 'Q4964182');
+INSERT INTO has_occupation_edges (person_id, occupation_id) VALUES ('Q298521', 'Q36180');
+INSERT INTO has_occupation_edges (person_id, occupation_id) VALUES ('Q310798', 'Q82594');
+INSERT INTO has_occupation_edges (person_id, occupation_id) VALUES ('Q310798', 'Q170790');
+INSERT INTO has_occupation_edges (person_id, occupation_id) VALUES ('Q310798', 'Q1622272');
+INSERT INTO has_occupation_edges (person_id, occupation_id) VALUES ('Q310798', 'Q15976092');
+INSERT INTO has_occupation_edges (person_id, occupation_id) VALUES ('Q310798', 'Q36180');
+INSERT INTO has_occupation_edges (person_id, occupation_id) VALUES ('Q310798', 'Q169470');
+INSERT INTO has_occupation_edges (person_id, occupation_id) VALUES ('Q310798', 'Q715679');
+INSERT INTO has_occupation_edges (person_id, occupation_id) VALUES ('Q310798', 'Q43845');
+INSERT INTO has_occupation_edges (person_id, occupation_id) VALUES ('Q310798', 'Q6051619');
+INSERT INTO has_occupation_edges (person_id, occupation_id) VALUES ('Q310798', 'Q215536');
+INSERT INTO has_occupation_edges (person_id, occupation_id) VALUES ('Q310798', 'Q15077007');
+INSERT INTO has_occupation_edges (person_id, occupation_id) VALUES ('Q450154', 'Q170790');
+INSERT INTO has_occupation_edges (person_id, occupation_id) VALUES ('Q450154', 'Q169470');
+INSERT INTO has_occupation_edges (person_id, occupation_id) VALUES ('Q450154', 'Q17486330');
+INSERT INTO has_occupation_edges (person_id, occupation_id) VALUES ('Q450154', 'Q864380');
+INSERT INTO has_occupation_edges (person_id, occupation_id) VALUES ('Q450154', 'Q15143191');
+INSERT INTO has_occupation_edges (person_id, occupation_id) VALUES ('Q43075535', 'Q864380');
+INSERT INTO has_occupation_edges (person_id, occupation_id) VALUES ('Q43075535', 'Q40348');
+INSERT INTO has_occupation_edges (person_id, occupation_id) VALUES ('Q59884129', 'Q1709010');
+
+-- STUDENT_OF_EDGES (STUDENT_OF: 3 Einträge)
+INSERT INTO student_of_edges (student_id, teacher_id) VALUES ('Q7251', 'Q92741');
+INSERT INTO student_of_edges (student_id, teacher_id) VALUES ('Q16493', 'Q7251');
+INSERT INTO student_of_edges (student_id, teacher_id) VALUES ('Q249984', 'Q7251');
+
+-- ADVISED_EDGES (ADVISED: 3 Einträge)
+INSERT INTO advised_edges (advisor_id, advisee_id) VALUES ('Q7251', 'Q16493');
+INSERT INTO advised_edges (advisor_id, advisee_id) VALUES ('Q7251', 'Q249984');
+INSERT INTO advised_edges (advisor_id, advisee_id) VALUES ('Q92741', 'Q7251');
+
+
+-- FATHER_EDGES (FATHER_OF: 1 Einträge)
+INSERT INTO father_edges (father_id, child_id) VALUES ('Q20895930', 'Q7251');
+
+-- MOTHER_EDGES (MOTHER_OF: 1 Einträge)
+INSERT INTO mother_edges (mother_id, child_id) VALUES ('Q20895935', 'Q7251');
+
+-- PARTNER_EDGES (PARTNER_OF: 2 Einträge)
+INSERT INTO partner_edges (person1_id, person2_id) VALUES ('Q7251', 'Q21693479');
+INSERT INTO partner_edges (person1_id, person2_id) VALUES ('Q21693479', 'Q7251');
+
+
+-- SIGNIFICANT_PERSON_EDGES (SIGNIFICANT_PERSON_FOR: 1 Einträge)
+INSERT INTO significant_person_edges (significant_person_id, for_person_id) VALUES ('Q7251', 'Q224372');
+
+-- INFLUENCE_EDGES (INFLUENCED_BY: 4 Einträge)
+INSERT INTO influence_edges (influenced_id, influencer_id) VALUES ('Q7251', 'Q298521');
+INSERT INTO influence_edges (influenced_id, influencer_id) VALUES ('Q7251', 'Q310798');
+INSERT INTO influence_edges (influenced_id, influencer_id) VALUES ('Q7251', 'Q450154');
+INSERT INTO influence_edges (influenced_id, influencer_id) VALUES ('Q7251', 'Q59884129');
+
+-- RELATIVE_EDGES (RELATIVE_OF: 2 Einträge)
+INSERT INTO relative_edges (person1_id, person2_id) VALUES ('Q7251', 'Q43075535');
+INSERT INTO relative_edges (person1_id, person2_id) VALUES ('Q43075535', 'Q7251');
+
+-- BIRTH_IN_EDGES (BIRTH_IN: 10 Einträge)
+INSERT INTO birth_in_edges (person_id, place_id) VALUES ('Q7251', 'Q122744');
+INSERT INTO birth_in_edges (person_id, place_id) VALUES ('Q16493', 'Q2917451');
+INSERT INTO birth_in_edges (person_id, place_id) VALUES ('Q92741', 'Q61');
+INSERT INTO birth_in_edges (person_id, place_id) VALUES ('Q249984', 'Q2304852');
+INSERT INTO birth_in_edges (person_id, place_id) VALUES ('Q20895935', 'Q1661840');
+INSERT INTO birth_in_edges (person_id, place_id) VALUES ('Q224372', 'Q84');
+INSERT INTO birth_in_edges (person_id, place_id) VALUES ('Q298521', 'Q384692');
+INSERT INTO birth_in_edges (person_id, place_id) VALUES ('Q310798', 'Q84');
+INSERT INTO birth_in_edges (person_id, place_id) VALUES ('Q450154', 'Q84');
+INSERT INTO birth_in_edges (person_id, place_id) VALUES ('Q59884129', 'Q18655');
+
+-- DIED_IN_EDGES (DIED_IN: 8 Einträge)
+INSERT INTO died_in_edges (person_id, place_id) VALUES ('Q7251', 'Q2011497');
+INSERT INTO died_in_edges (person_id, place_id) VALUES ('Q16493', 'Q639408');
+INSERT INTO died_in_edges (person_id, place_id) VALUES ('Q92741', 'Q579848');
+INSERT INTO died_in_edges (person_id, place_id) VALUES ('Q249984', 'Q34217');
+INSERT INTO died_in_edges (person_id, place_id) VALUES ('Q20895935', 'Q23287');
+INSERT INTO died_in_edges (person_id, place_id) VALUES ('Q224372', 'Q586070');
+INSERT INTO died_in_edges (person_id, place_id) VALUES ('Q298521', 'Q60');
+INSERT INTO died_in_edges (person_id, place_id) VALUES ('Q59884129', 'Q971223');
+
+-- NATIONAL_OF_EDGES (NATIONAL_OF: 11 Einträge)
+INSERT INTO national_of_edges (person_id, place_id) VALUES ('Q7251', 'Q145');
+INSERT INTO national_of_edges (person_id, place_id) VALUES ('Q16493', 'Q16');
+INSERT INTO national_of_edges (person_id, place_id) VALUES ('Q92741', 'Q30');
+INSERT INTO national_of_edges (person_id, place_id) VALUES ('Q249984', 'Q145');
+INSERT INTO national_of_edges (person_id, place_id) VALUES ('Q20895935', 'Q145');
+INSERT INTO national_of_edges (person_id, place_id) VALUES ('Q21693479', 'Q145');
+INSERT INTO national_of_edges (person_id, place_id) VALUES ('Q224372', 'Q145');
+INSERT INTO national_of_edges (person_id, place_id) VALUES ('Q298521', 'Q30');
+INSERT INTO national_of_edges (person_id, place_id) VALUES ('Q310798', 'Q145');
+INSERT INTO national_of_edges (person_id, place_id) VALUES ('Q450154', 'Q145');
+INSERT INTO national_of_edges (person_id, place_id) VALUES ('Q43075535', 'Q145');
+
+-- WORKED_AT_EDGES (WORKED_AT: 16 Einträge)
+INSERT INTO worked_at_edges (person_id, workplace_id) VALUES ('Q7251', 'Q867530');
+INSERT INTO worked_at_edges (person_id, workplace_id) VALUES ('Q7251', 'Q220798');
+INSERT INTO worked_at_edges (person_id, workplace_id) VALUES ('Q7251', 'Q35794');
+INSERT INTO worked_at_edges (person_id, workplace_id) VALUES ('Q7251', 'Q1967606');
+INSERT INTO worked_at_edges (person_id, workplace_id) VALUES ('Q16493', 'Q180865');
+INSERT INTO worked_at_edges (person_id, workplace_id) VALUES ('Q16493', 'Q1420038');
+INSERT INTO worked_at_edges (person_id, workplace_id) VALUES ('Q92741', 'Q21578');
+INSERT INTO worked_at_edges (person_id, workplace_id) VALUES ('Q92741', 'Q174710');
+INSERT INTO worked_at_edges (person_id, workplace_id) VALUES ('Q224372', 'Q220798');
+INSERT INTO worked_at_edges (person_id, workplace_id) VALUES ('Q224372', 'Q155921');
+INSERT INTO worked_at_edges (person_id, workplace_id) VALUES ('Q224372', 'Q65379');
+INSERT INTO worked_at_edges (person_id, workplace_id) VALUES ('Q224372', 'Q230899');
+INSERT INTO worked_at_edges (person_id, workplace_id) VALUES ('Q224372', 'Q4683781');
+INSERT INTO worked_at_edges (person_id, workplace_id) VALUES ('Q224372', 'Q1665138');
+INSERT INTO worked_at_edges (person_id, workplace_id) VALUES ('Q224372', 'Q73079');
+INSERT INTO worked_at_edges (person_id, workplace_id) VALUES ('Q298521', 'Q1024543');
+
+-- CREATED_EDGES (CREATED: 29 Einträge)
+INSERT INTO created_edges (person_id, work_id) VALUES ('Q7251', 'Q20895949');
+INSERT INTO created_edges (person_id, work_id) VALUES ('Q7251', 'Q772056');
+INSERT INTO created_edges (person_id, work_id) VALUES ('Q7251', 'Q20895966');
+INSERT INTO created_edges (person_id, work_id) VALUES ('Q7251', 'Q622849');
+INSERT INTO created_edges (person_id, work_id) VALUES ('Q7251', 'Q163310');
+INSERT INTO created_edges (person_id, work_id) VALUES ('Q7251', 'Q189223');
+INSERT INTO created_edges (person_id, work_id) VALUES ('Q7251', 'Q197970');
+INSERT INTO created_edges (person_id, work_id) VALUES ('Q7251', 'Q2703890');
+INSERT INTO created_edges (person_id, work_id) VALUES ('Q7251', 'Q7661303');
+INSERT INTO created_edges (person_id, work_id) VALUES ('Q7251', 'Q1190223');
+INSERT INTO created_edges (person_id, work_id) VALUES ('Q7251', 'Q480476');
+INSERT INTO created_edges (person_id, work_id) VALUES ('Q7251', 'Q1191836');
+INSERT INTO created_edges (person_id, work_id) VALUES ('Q7251', 'Q1527413');
+INSERT INTO created_edges (person_id, work_id) VALUES ('Q7251', 'Q309157');
+INSERT INTO created_edges (person_id, work_id) VALUES ('Q92741', 'Q309157');
+INSERT INTO created_edges (person_id, work_id) VALUES ('Q92741', 'Q4353569');
+INSERT INTO created_edges (person_id, work_id) VALUES ('Q92741', 'Q5501323');
+INSERT INTO created_edges (person_id, work_id) VALUES ('Q92741', 'Q1308502');
+INSERT INTO created_edges (person_id, work_id) VALUES ('Q92741', 'Q18212353');
+INSERT INTO created_edges (person_id, work_id) VALUES ('Q92741', 'Q242028');
+INSERT INTO created_edges (person_id, work_id) VALUES ('Q224372', 'Q5583769');
+INSERT INTO created_edges (person_id, work_id) VALUES ('Q298521', 'Q501747');
+INSERT INTO created_edges (person_id, work_id) VALUES ('Q310798', 'Q15241057');
+INSERT INTO created_edges (person_id, work_id) VALUES ('Q310798', 'Q2987018');
+INSERT INTO created_edges (person_id, work_id) VALUES ('Q310798', 'Q81294');
+INSERT INTO created_edges (person_id, work_id) VALUES ('Q450154', 'Q34308373');

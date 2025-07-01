@@ -1,0 +1,40 @@
+{
+  "name": "unified-backend",
+  "version": "1.0.0",
+  "description": "Unified Backend für Memgraph und Oracle",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js",
+    "data:export": "node data-explorer.js"
+  },
+  "dependencies": {
+    "axios": "^1.10.0",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "debug": "^4.4.1",
+    "dotenv": "^16.5.0",
+    "ejs": "^3.1.10",
+    "express": "^5.1.0",
+    "express-session": "^1.18.1",
+    "http-errors": "^2.0.0",
+    "morgan": "^1.10.0",
+    "neo4j-driver": "^5.17.0",
+    "oracledb": "^6.8.0",
+    "path": "^0.12.7",
+    "pbkdf2-password": "^1.2.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  },
+  "keywords": [
+    "api",
+    "backend",
+    "memgraph",
+    "oracle",
+    "graph-database",
+    "property-graph"
+  ],
+  "author": "",
+  "license": "ISC"
+}
