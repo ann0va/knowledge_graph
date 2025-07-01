@@ -5,7 +5,7 @@ require('dotenv').config();
 
 const { initializeOraclePool, getOracleConnection } = require('./src/config/database');
 const MemgraphRepository = require('./src/repositories/MemgraphRepository');
-const RepositoryFactory = require('./src/repositories');
+const RepositoryFactory = require('./src/repositories/RepositoryFactory');
 
 const app = express();
 const PORT = process.env.PORT || 10510;

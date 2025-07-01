@@ -34,6 +34,21 @@ async function initializeOraclePool() {
     }
 }
 
+async function connectToMemgraph() {
+    // Connectivity Test
+    const session = getMemgraphSession();
+    try {
+        await session.run('RETURN 1 as test');
+        console.log('✅ Memgraph connection test successful');
+        return true;
+    } catch (error) {
+        console.error('❌ Memgraph connection test failed:', error.message);
+        throw error;
+    } finally {
+        await session.close();
+    }
+}
+
 // Memgraph Treiber initialisieren
 const memgraphDriver = neo4j.driver(
     memgraphConfig.uri,

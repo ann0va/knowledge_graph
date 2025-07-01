@@ -1,6 +1,6 @@
 ﻿// debug.js - Graph Structure Investigation
-const PropertyGraphService = require('./src/services/PropertyGraphService');
-const { getMemgraphSession } = require('./src/config/database');
+const PropertyGraphService = require('./../services/PropertyGraphService');
+const { getMemgraphSession } = require('./../config/database');
 
 async function debugGraphStructure() {
     console.log('🔍 Debugging Graph Structure...\n');

@@ -52,6 +52,11 @@ class RepositoryFactory {
         return EntityRepository.getEntityConfig(entityType);
     }
 
+    // 🎯 UTILITY: Alle verfügbaren Relationship-Typen
+    getAvailableRelationshipTypes() {
+        return EntityRepository.getAvailableRelationshipTypes();
+    }
+    
     // 🎯 CLEANUP: Alle Repositories schließen
     async closeAll() {
         for (const repository of this.repositories.values()) {

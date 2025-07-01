@@ -1,5 +1,5 @@
 ﻿// src/repositories/BaseRepository_FIXED.js - Komplett überarbeitet
-const { OracleGraphRESTClient } = require('../../oracle_graph_js_client');
+const { OracleGraphRESTClient } = require('../services/OracleGraphRESTClient');
 
 class BaseRepository {
     constructor(db, dbType) {
