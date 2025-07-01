@@ -1,11 +1,11 @@
-﻿// src/components/query/EdgeCreator.js - CREATE Edge Interface
+﻿// src/components/query/EdgeCreator.js - FIXED: German + Multi-Database Support
 import React, { useState, useEffect } from 'react';
 import { Link, Save, RefreshCw, CheckCircle, AlertCircle, ArrowRight } from 'lucide-react';
 import apiService from '../../services/api';
 import EntityDropdown from './shared/EntityDropdown';
 
 const EdgeCreator = () => {
-    const [database, setDatabase] = useState('memgraph');
+    const [database, setDatabase] = useState('both'); // 🔧 FIXED: Default to both
     const [relationshipType, setRelationshipType] = useState('WORKS_IN');
     const [sourceEntityType, setSourceEntityType] = useState('person');
     const [sourceEntityName, setSourceEntityName] = useState('');
@@ -54,6 +54,43 @@ const EdgeCreator = () => {
     const currentEdgeConfig = edgeConfigs[relationshipType] || {};
     const availableProperties = currentEdgeConfig.properties || [];
 
+    // 🔧 GERMAN LABELS: Relationship Type Labels
+    const getRelationshipTypeLabel = (type) => {
+        const labels = {
+            'WORKS_IN': 'arbeitet in Bereich',
+            'HAS_OCCUPATION': 'hat Beruf',
+            'RECEIVED': 'erhielt Auszeichnung',
+            'BIRTH_IN': 'wurde geboren in',
+            'DIED_IN': 'starb in',
+            'WORKED_AT': 'arbeitete bei',
+            'CREATED': 'erschuf Werk',
+            'STUDENT_OF': 'war Student von',
+            'ADVISED': 'betreute',
+            'PARTNER_OF': 'war Partner von',
+            'RELATIVE_OF': 'ist verwandt mit',
+            'INFLUENCED_BY': 'wurde beeinflusst von',
+            'SIGNIFICANT_PERSON_FOR': 'war bedeutsam für',
+            'FATHER_OF': 'ist Vater von',
+            'MOTHER_OF': 'ist Mutter von',
+            'NATIONAL_OF': 'ist Staatsangehöriger von'
+        };
+        return labels[type] || type;
+    };
+
+    // 🔧 GERMAN LABELS: Entity Type Labels
+    const getEntityTypeLabel = (type) => {
+        const labels = {
+            'person': '👤 Person',
+            'place': '📍 Ort',
+            'work': '📚 Werk',
+            'award': '🏆 Auszeichnung',
+            'field': '🔬 Fachbereich',
+            'occupation': '💼 Beruf',
+            'workplace': '🏢 Arbeitsplatz'
+        };
+        return labels[type] || type;
+    };
+
     // Property-Änderung
     const handlePropertyChange = (property, value) => {
         setEdgeProperties(prev => ({
@@ -86,6 +123,11 @@ const EdgeCreator = () => {
                 let wikidataId;
                 if (db === 'oracle') {
                     wikidataId = entity.id || entity.ID;
+                    // Extract from VERTEX_ID if needed
+                    if (!wikidataId && entity.VERTEX_ID) {
+                        const match = entity.VERTEX_ID.match(/\(([^)]+)\)/);
+                        wikidataId = match ? match[1] : entity.VERTEX_ID;
+                    }
                 } else {
                     wikidataId = entity['e.id'] || entity.id;
                 }
@@ -105,27 +147,70 @@ const EdgeCreator = () => {
     // Validation
     const validateForm = () => {
         if (!relationshipType) {
-            setValidationError('Relationship type is required');
+            setValidationError('Beziehungstyp ist erforderlich');
             return false;
         }
 
         if (!sourceEntityName.trim()) {
-            setValidationError('Source entity name is required');
+            setValidationError('Start-Entity-Name ist erforderlich');
             return false;
         }
 
         if (!targetEntityName.trim()) {
-            setValidationError('Target entity name is required');
+            setValidationError('Ziel-Entity-Name ist erforderlich');
             return false;
         }
 
         if (sourceEntityName.trim() === targetEntityName.trim() && sourceEntityType === targetEntityType) {
-            setValidationError('Source and target entities must be different');
+            setValidationError('Start- und Ziel-Entities müssen unterschiedlich sein');
             return false;
         }
 
         setValidationError('');
         return true;
+    };
+
+    // 🆕 MULTI-DATABASE: Edge in beiden Datenbanken erstellen
+    const createEdgeInBothDatabases = async (edgeData) => {
+        const results = {
+            memgraph: null,
+            oracle: null,
+            success: false,
+            errors: []
+        };
+
+        // Memgraph
+        try {
+            console.log('🔵 Creating edge in Memgraph...');
+            const memgraphResult = await apiService.createEdge(edgeData, 'memgraph');
+            results.memgraph = memgraphResult;
+            console.log('✅ Memgraph edge created:', memgraphResult);
+        } catch (memgraphError) {
+            console.error('❌ Memgraph edge creation failed:', memgraphError);
+            results.errors.push({
+                database: 'memgraph',
+                error: memgraphError.message
+            });
+        }
+
+        // Oracle
+        try {
+            console.log('🔴 Creating edge in Oracle...');
+            const oracleResult = await apiService.createEdge(edgeData, 'oracle');
+            results.oracle = oracleResult;
+            console.log('✅ Oracle edge created:', oracleResult);
+        } catch (oracleError) {
+            console.error('❌ Oracle edge creation failed:', oracleError);
+            results.errors.push({
+                database: 'oracle',
+                error: oracleError.message
+            });
+        }
+
+        // Erfolg wenn mindestens eine Datenbank erfolgreich war
+        results.success = results.memgraph || results.oracle;
+
+        return results;
     };
 
     // Edge erstellen
@@ -137,72 +222,63 @@ const EdgeCreator = () => {
         setResult(null);
 
         try {
-            // Entity IDs ermitteln
-            console.log('Looking up entity IDs...');
+            console.log('🔍 Starting edge creation process...');
 
-            const [sourceId, targetId] = await Promise.all([
-                getEntityIdByName(sourceEntityType, sourceEntityName, database),
-                getEntityIdByName(targetEntityType, targetEntityName, database)
-            ]);
+            // Determine which databases to use for ID lookup
+            const databasesToCheck = database === 'both' ? ['memgraph', 'oracle'] : [database];
+
+            let sourceId = null;
+            let targetId = null;
+
+            // Find source entity ID in available databases
+            for (const db of databasesToCheck) {
+                if (!sourceId) {
+                    sourceId = await getEntityIdByName(sourceEntityType, sourceEntityName, db);
+                    if (sourceId) {
+                        console.log(`✅ Found source entity ${sourceEntityName} in ${db}: ${sourceId}`);
+                    }
+                }
+            }
+
+            // Find target entity ID in available databases
+            for (const db of databasesToCheck) {
+                if (!targetId) {
+                    targetId = await getEntityIdByName(targetEntityType, targetEntityName, db);
+                    if (targetId) {
+                        console.log(`✅ Found target entity ${targetEntityName} in ${db}: ${targetId}`);
+                    }
+                }
+            }
 
             if (!sourceId) {
-                throw new Error(`❌ Source entity "${sourceEntityName}" (${sourceEntityType}) not found in ${database}. Make sure the entity exists and the name is spelled correctly.`);
+                throw new Error(`❌ Start-Entity "${sourceEntityName}" (${getEntityTypeLabel(sourceEntityType)}) nicht gefunden. Stellen Sie sicher, dass die Entity existiert und der Name korrekt geschrieben ist.`);
             }
 
             if (!targetId) {
-                throw new Error(`❌ Target entity "${targetEntityName}" (${targetEntityType}) not found in ${database}. Make sure the entity exists and the name is spelled correctly.`);
+                throw new Error(`❌ Ziel-Entity "${targetEntityName}" (${getEntityTypeLabel(targetEntityType)}) nicht gefunden. Stellen Sie sicher, dass die Entity existiert und der Name korrekt geschrieben ist.`);
             }
-
-            console.log(`Found IDs: ${sourceEntityName} -> ${sourceId}, ${targetEntityName} -> ${targetId}`);
 
             // Edge Data zusammenstellen
             const edgeData = {
                 relationshipType,
-                sourceEntityType, // 🔧 Sicherstellen dass diese Werte gesetzt sind
+                sourceEntityType,
                 sourceId,
                 targetEntityType,
                 targetId,
                 properties: edgeProperties
             };
 
+            console.log('🔧 Final edge data:', edgeData);
 
-            console.log('🔧 Final edge data before API call:', edgeData);
-            console.log('🔧 Source Entity Type:', sourceEntityType);
-            console.log('🔧 Target Entity Type:', targetEntityType);
-            
-            
+            let response;
 
-            console.log('Creating edge:', edgeData);
-
-            console.log('🔧 DEBUG sourceEntityType:', sourceEntityType);
-            console.log('🔧 DEBUG typeof sourceEntityType:', typeof sourceEntityType);
-            console.log('🔧 DEBUG edgeData.sourceEntityType:', edgeData.sourceEntityType);
-
-// Falls sourceEntityType undefined/falsch ist:
-            if (!sourceEntityType || sourceEntityType === 'edge') {
-                console.log('🔧 FIXING sourceEntityType to person');
-                edgeData.sourceEntityType = 'person';
+            if (database === 'both') {
+                // 🆕 In beiden Datenbanken erstellen
+                response = await createEdgeInBothDatabases(edgeData);
+            } else {
+                // Einzelne Datenbank
+                response = await apiService.createEdge(edgeData, database);
             }
-            
-            // 🔧 DEBUG: Direct api test  
-            console.log('🔧 TESTING DIRECT API CALL...');
-            try {
-                const { default: axios } = await import('axios');
-                const directTest = await axios.post(
-                    'http://c017-master.infcs.de:10510/api/entity/edge/create?db=memgraph',
-                    edgeData,
-                    {
-                        headers: { 'Content-Type': 'application/json' },
-                        timeout: 10000
-                    }
-                );
-                console.log('🔧 DIRECT SUCCESS:', directTest.data);
-            } catch (directError) {
-                console.log('🔧 DIRECT ERROR:', directError.response?.data || directError.message);
-                console.log('🔧 DIRECT ERROR STATUS:', directError.response?.status);
-            }
-            
-            const response = await apiService.createEdge(edgeData, database);
 
             setResult(response);
 
@@ -222,11 +298,24 @@ const EdgeCreator = () => {
     const renderPropertyField = (property) => {
         const value = edgeProperties[property] || '';
 
+        // 🔧 GERMAN LABELS für Properties
+        const getPropertyLabel = (prop) => {
+            const labels = {
+                'start_date': 'Startdatum',
+                'end_date': 'Enddatum',
+                'date': 'Datum',
+                'description': 'Beschreibung',
+                'type': 'Typ',
+                'role': 'Rolle'
+            };
+            return labels[prop] || prop.replace('_', ' ').toUpperCase();
+        };
+
         if (property.includes('date')) {
             return (
                 <div key={property} className="space-y-2">
                     <label className="block text-sm font-medium text-gray-700">
-                        {property.replace('_', ' ').toUpperCase()}
+                        {getPropertyLabel(property)}
                     </label>
                     <input
                         type="date"
@@ -241,13 +330,13 @@ const EdgeCreator = () => {
         return (
             <div key={property} className="space-y-2">
                 <label className="block text-sm font-medium text-gray-700">
-                    {property.replace('_', ' ').toUpperCase()}
+                    {getPropertyLabel(property)}
                 </label>
                 <input
                     type="text"
                     value={value}
                     onChange={(e) => handlePropertyChange(property, e.target.value)}
-                    placeholder={`Enter ${property.replace('_', ' ')}...`}
+                    placeholder={`${getPropertyLabel(property)} eingeben...`}
                     className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500"
                 />
             </div>
@@ -266,20 +355,27 @@ const EdgeCreator = () => {
 
             {/* Database Selection */}
             <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-2">Database</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Ziel-Datenbank</label>
                 <select
                     value={database}
                     onChange={(e) => setDatabase(e.target.value)}
                     className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 max-w-md"
                 >
+                    <option value="both">🔵🔴 Beide Datenbanken</option>
                     <option value="memgraph">🔵 Memgraph (Cypher)</option>
                     <option value="oracle">🔴 Oracle (PGQL)</option>
                 </select>
+                <p className="text-xs text-gray-500 mt-1">
+                    {database === 'both'
+                        ? 'Beziehung wird in beiden Datenbanken erstellt (wenn Entities existieren)'
+                        : `Beziehung wird nur in ${database === 'memgraph' ? 'Memgraph' : 'Oracle'} erstellt`
+                    }
+                </p>
             </div>
 
             {/* Relationship Type Selection */}
             <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-2">Relationship Type</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Beziehungstyp</label>
                 <select
                     value={relationshipType}
                     onChange={(e) => setRelationshipType(e.target.value)}
@@ -287,9 +383,9 @@ const EdgeCreator = () => {
                 >
                     {availableEdgeTypes.map(edgeType => (
                         <option key={edgeType} value={edgeType}>
-                            {edgeType}
+                            {getRelationshipTypeLabel(edgeType)}
                             {edgeConfigs[edgeType] && (
-                                ` (${edgeConfigs[edgeType].source_type} → ${edgeConfigs[edgeType].target_type})`
+                                ` (${getEntityTypeLabel(edgeConfigs[edgeType].source_type)} → ${getEntityTypeLabel(edgeConfigs[edgeType].target_type)})`
                             )}
                         </option>
                     ))}
@@ -297,7 +393,7 @@ const EdgeCreator = () => {
 
                 {currentEdgeConfig.source_type && (
                     <p className="text-sm text-gray-500 mt-1">
-                        🔗 Connects: <strong>{currentEdgeConfig.source_type}</strong> → <strong>{currentEdgeConfig.target_type}</strong>
+                        🔗 Verbindet: <strong>{getEntityTypeLabel(currentEdgeConfig.source_type)}</strong> → <strong>{getEntityTypeLabel(currentEdgeConfig.target_type)}</strong>
                     </p>
                 )}
             </div>
@@ -307,11 +403,11 @@ const EdgeCreator = () => {
                 {/* Source Entity */}
                 <div className="space-y-4">
                     <h4 className="font-medium text-gray-900 flex items-center gap-2">
-                        📤 Source Entity
+                        🚀 Start-Entity
                     </h4>
 
                     <div className="space-y-2">
-                        <label className="block text-sm font-medium text-gray-700">Entity Type</label>
+                        <label className="block text-sm font-medium text-gray-700">Entity-Typ</label>
                         <select
                             value={sourceEntityType}
                             onChange={(e) => setSourceEntityType(e.target.value)}
@@ -319,44 +415,44 @@ const EdgeCreator = () => {
                             className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
                         >
                             <option value="person">👤 Person</option>
-                            <option value="place">📍 Place</option>
-                            <option value="work">📚 Work</option>
-                            <option value="award">🏆 Award</option>
-                            <option value="field">🔬 Field</option>
-                            <option value="occupation">💼 Occupation</option>
-                            <option value="workplace">🏢 Workplace</option>
+                            <option value="place">📍 Ort</option>
+                            <option value="work">📚 Werk</option>
+                            <option value="award">🏆 Auszeichnung</option>
+                            <option value="field">🔬 Fachbereich</option>
+                            <option value="occupation">💼 Beruf</option>
+                            <option value="workplace">🏢 Arbeitsplatz</option>
                         </select>
                     </div>
 
                     <div className="space-y-2">
-                        <label className="block text-sm font-medium text-gray-700">Entity Name</label>
+                        <label className="block text-sm font-medium text-gray-700">Entity-Name</label>
                         <EntityDropdown
                             value={sourceEntityName}
                             onChange={setSourceEntityName}
                             entityType={sourceEntityType}
                             database="both"
                             showDatabaseIndicator={true}
-                            placeholder={`Select ${sourceEntityType}...`}
+                            placeholder={`${getEntityTypeLabel(sourceEntityType)} auswählen...`}
                         />
                     </div>
                 </div>
 
                 {/* Arrow */}
                 <div className="flex items-center justify-center lg:pt-16">
-                    <div className="flex items-center gap-2 text-blue-600">
+                    <div className="flex flex-col items-center gap-2 text-blue-600">
                         <ArrowRight size={24} />
-                        <span className="text-sm font-medium">{relationshipType}</span>
+                        <span className="text-xs font-medium text-center">{getRelationshipTypeLabel(relationshipType)}</span>
                     </div>
                 </div>
 
                 {/* Target Entity */}
                 <div className="space-y-4">
                     <h4 className="font-medium text-gray-900 flex items-center gap-2">
-                        📥 Target Entity
+                        🎯 Ziel-Entity
                     </h4>
 
                     <div className="space-y-2">
-                        <label className="block text-sm font-medium text-gray-700">Entity Type</label>
+                        <label className="block text-sm font-medium text-gray-700">Entity-Typ</label>
                         <select
                             value={targetEntityType}
                             onChange={(e) => setTargetEntityType(e.target.value)}
@@ -364,24 +460,24 @@ const EdgeCreator = () => {
                             className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
                         >
                             <option value="person">👤 Person</option>
-                            <option value="place">📍 Place</option>
-                            <option value="work">📚 Work</option>
-                            <option value="award">🏆 Award</option>
-                            <option value="field">🔬 Field</option>
-                            <option value="occupation">💼 Occupation</option>
-                            <option value="workplace">🏢 Workplace</option>
+                            <option value="place">📍 Ort</option>
+                            <option value="work">📚 Werk</option>
+                            <option value="award">🏆 Auszeichnung</option>
+                            <option value="field">🔬 Fachbereich</option>
+                            <option value="occupation">💼 Beruf</option>
+                            <option value="workplace">🏢 Arbeitsplatz</option>
                         </select>
                     </div>
 
                     <div className="space-y-2">
-                        <label className="block text-sm font-medium text-gray-700">Entity Name</label>
+                        <label className="block text-sm font-medium text-gray-700">Entity-Name</label>
                         <EntityDropdown
                             value={targetEntityName}
                             onChange={setTargetEntityName}
                             entityType={targetEntityType}
                             database="both"
                             showDatabaseIndicator={true}
-                            placeholder={`Select ${targetEntityType}...`}
+                            placeholder={`${getEntityTypeLabel(targetEntityType)} auswählen...`}
                         />
                     </div>
                 </div>
@@ -390,7 +486,7 @@ const EdgeCreator = () => {
             {/* Edge Properties */}
             {availableProperties.length > 0 && (
                 <div className="mb-6">
-                    <h4 className="font-medium text-gray-900 mb-4">Relationship Properties (Optional)</h4>
+                    <h4 className="font-medium text-gray-900 mb-4">Beziehungseigenschaften (Optional)</h4>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {availableProperties.map(property => renderPropertyField(property))}
                     </div>
@@ -415,12 +511,12 @@ const EdgeCreator = () => {
                     {loading ? (
                         <>
                             <RefreshCw size={16} className="animate-spin" />
-                            Creating...
+                            Erstelle Beziehung...
                         </>
                     ) : (
                         <>
                             <Save size={16} />
-                            Create Relationship
+                            Beziehung erstellen
                         </>
                     )}
                 </button>
@@ -436,43 +532,101 @@ const EdgeCreator = () => {
                     }}
                     className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
                 >
-                    Reset Form
+                    Formular zurücksetzen
                 </button>
             </div>
 
-            {/* Success Result */}
+            {/* Success Result - MULTI-DATABASE SUPPORT */}
             {result && (
                 <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
                     <div className="flex items-center gap-2 mb-3">
                         <CheckCircle className="text-green-600" size={20} />
-                        <h4 className="font-medium text-green-900">✅ Relationship created successfully!</h4>
+                        <h4 className="font-medium text-green-900">
+                            {database === 'both'
+                                ? '✅ Beziehungen-Erstellung abgeschlossen!'
+                                : '✅ Beziehung erfolgreich erstellt!'
+                            }
+                        </h4>
                     </div>
 
-                    <div className="space-y-2 text-sm">
-                        <div className="grid grid-cols-2 gap-4">
-                            <div>
-                                <strong>Relationship:</strong> {result.data?.edge?.relationshipType}
-                            </div>
-                            <div>
-                                <strong>Database:</strong> {result.data?.database}
-                            </div>
-                            <div>
-                                <strong>Source:</strong> {result.data?.edge?.sourceId}
-                            </div>
-                            <div>
-                                <strong>Target:</strong> {result.data?.edge?.targetId}
-                            </div>
+                    {database === 'both' ? (
+                        // Multi-Database Result
+                        <div className="space-y-4">
+                            {/* Memgraph Result */}
+                            {result.memgraph ? (
+                                <div className="p-3 bg-blue-50 border border-blue-200 rounded">
+                                    <h5 className="font-medium text-blue-900 mb-2">🔵 Memgraph</h5>
+                                    <div className="text-sm text-blue-800">
+                                        <div>✅ Erfolgreich erstellt</div>
+                                        <div><strong>Beziehung:</strong> {result.memgraph.data?.edge?.relationshipType}</div>
+                                        <div><strong>Von:</strong> {result.memgraph.data?.edge?.sourceId}</div>
+                                        <div><strong>Nach:</strong> {result.memgraph.data?.edge?.targetId}</div>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="p-3 bg-red-50 border border-red-200 rounded">
+                                    <h5 className="font-medium text-red-900 mb-2">🔵 Memgraph</h5>
+                                    <div className="text-sm text-red-800">
+                                        ❌ Fehlgeschlagen: {result.errors.find(e => e.database === 'memgraph')?.error || 'Unbekannter Fehler'}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Oracle Result */}
+                            {result.oracle ? (
+                                <div className="p-3 bg-red-50 border border-red-200 rounded">
+                                    <h5 className="font-medium text-red-900 mb-2">🔴 Oracle</h5>
+                                    <div className="text-sm text-red-800">
+                                        <div>✅ Erfolgreich erstellt</div>
+                                        <div><strong>Beziehung:</strong> {result.oracle.data?.edge?.relationshipType}</div>
+                                        <div><strong>Von:</strong> {result.oracle.data?.edge?.sourceId}</div>
+                                        <div><strong>Nach:</strong> {result.oracle.data?.edge?.targetId}</div>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="p-3 bg-red-50 border border-red-200 rounded">
+                                    <h5 className="font-medium text-red-900 mb-2">🔴 Oracle</h5>
+                                    <div className="text-sm text-red-800">
+                                        ❌ Fehlgeschlagen: {result.errors.find(e => e.database === 'oracle')?.error || 'Unbekannter Fehler'}
+                                    </div>
+                                </div>
+                            )}
                         </div>
-
-                        {result.data?.edge && (
-                            <div className="mt-3 p-3 bg-white border rounded text-xs">
-                                <strong>Created Edge:</strong>
-                                <pre className="mt-1 overflow-x-auto">
-                                    {JSON.stringify(result.data.edge, null, 2)}
-                                </pre>
+                    ) : (
+                        // Single Database Result
+                        <div className="space-y-2 text-sm">
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <strong>Beziehung:</strong> {getRelationshipTypeLabel(result.data?.edge?.relationshipType)}
+                                </div>
+                                <div>
+                                    <strong>Datenbank:</strong>
+                                    <span className={`ml-2 px-2 py-1 text-xs rounded ${
+                                        result.data?.database === 'memgraph'
+                                            ? 'bg-blue-100 text-blue-800'
+                                            : 'bg-red-100 text-red-800'
+                                    }`}>
+                                        {result.data?.database === 'memgraph' ? '🔵 Memgraph' : '🔴 Oracle'}
+                                    </span>
+                                </div>
+                                <div>
+                                    <strong>Von:</strong> {result.data?.edge?.sourceId}
+                                </div>
+                                <div>
+                                    <strong>Nach:</strong> {result.data?.edge?.targetId}
+                                </div>
                             </div>
-                        )}
-                    </div>
+
+                            {result.data?.edge && (
+                                <div className="mt-3 p-3 bg-white border rounded text-xs">
+                                    <strong>Erstellte Beziehung:</strong>
+                                    <pre className="mt-1 overflow-x-auto">
+                                        {JSON.stringify(result.data.edge, null, 2)}
+                                    </pre>
+                                </div>
+                            )}
+                        </div>
+                    )}
                 </div>
             )}
 
@@ -481,7 +635,7 @@ const EdgeCreator = () => {
                 <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
                     <div className="flex items-center gap-2 mb-2">
                         <AlertCircle className="text-red-600" size={20} />
-                        <h4 className="font-medium text-red-900">❌ Creation failed</h4>
+                        <h4 className="font-medium text-red-900">❌ Erstellung fehlgeschlagen</h4>
                     </div>
                     <p className="text-red-700 text-sm">{error}</p>
                 </div>
@@ -489,13 +643,14 @@ const EdgeCreator = () => {
 
             {/* Info Box */}
             <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg text-sm">
-                <h5 className="font-medium text-blue-900 mb-2">💡 Usage Tips:</h5>
+                <h5 className="font-medium text-blue-900 mb-2">💡 Nutzungshinweise:</h5>
                 <ul className="text-blue-800 space-y-1">
-                    <li>• Select a <strong>relationship type</strong> first to auto-configure entity types</li>
-                    <li>• Entity names must exist in the selected database</li>
-                    <li>• <strong>Oracle</strong> creates edges via base tables, <strong>Memgraph</strong> via Cypher</li>
-                    <li>• Properties like dates are optional and relationship-specific</li>
-                    <li>• Different relationship types connect different entity types</li>
+                    <li>• Wählen Sie zuerst einen <strong>Beziehungstyp</strong> aus, um Entity-Typen automatisch zu konfigurieren</li>
+                    <li>• Entity-Namen müssen in der gewählten Datenbank existieren</li>
+                    <li>• <strong>Beide Datenbanken:</strong> Beziehung wird in beiden erstellt (wenn Entities vorhanden)</li>
+                    <li>• <strong>Oracle</strong> erstellt Beziehungen über Basistabellen, <strong>Memgraph</strong> über Cypher</li>
+                    <li>• Eigenschaften wie Daten sind optional und beziehungsspezifisch</li>
+                    <li>• Verschiedene Beziehungstypen verbinden verschiedene Entity-Typen</li>
                 </ul>
             </div>
         </div>

@@ -45,7 +45,7 @@ const QueryResults = ({ results, error, queryType }) => {
         <div className="bg-white rounded-lg border p-6">
             <h3 className="text-lg font-semibold mb-4 flex items-center">
                 {getQueryIcon()}
-                🎯 {getQueryLabel()}
+                {getQueryLabel()}
             </h3>
 
             {/* Side-by-Side Results Grid */}

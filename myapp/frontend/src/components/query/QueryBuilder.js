@@ -3,7 +3,7 @@
 // =============================================================================
 
 import React, { useState } from 'react';
-import { Search, Route, BarChart3, Database, Plus, Link, Trash2, AlertTriangle } from 'lucide-react';
+import {AlertTriangle } from 'lucide-react';
 import EntityFinder from './EntityFinder';
 import PathFinder from './PathFinder';
 import RelationshipCounter from './RelationshipCounter';
@@ -12,6 +12,7 @@ import NodeCreator from './NodeCreator';
 import EdgeCreator from './EdgeCreator';
 import NodeDeleter from './NodeDeleter';
 import EdgeDeleter from './EdgeDeleter';
+import GraphVisualizer from '../visualization/GraphVisualizer';
 
 const QueryBuilder = () => {
     const [activeQueryType, setActiveQueryType] = useState('find_related');
@@ -75,6 +76,13 @@ const QueryBuilder = () => {
             desc: 'Lösche eine spezifische Beziehung zwischen zwei Entities',
             component: EdgeDeleter,
             category: 'delete'
+        },
+        {
+            id: 'visualize_graph',
+            label: '🎨 Graph Visualisierung',
+            desc: 'Interaktive Visualisierung der Knowledge Graph Daten',
+            component: GraphVisualizer,
+            category: 'visualization'
         }
     ];
 
@@ -92,33 +100,10 @@ const QueryBuilder = () => {
             <div className="bg-white rounded-lg border p-6">
                 <h3 className="text-lg font-semibold mb-4">Query-Typ auswählen</h3>
 
-                {/* Query Category */}
-                <div className="mb-6">
-                    <h4 className="text-md font-medium text-gray-700 mb-3 flex items-center gap-2">
-                        🔍 Query Operations
-                    </h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-                        {queryTypes.filter(type => type.category === 'query').map(type => (
-                            <div
-                                key={type.id}
-                                onClick={() => setActiveQueryType(type.id)}
-                                className={`p-3 border-2 rounded-lg cursor-pointer transition-all ${
-                                    activeQueryType === type.id
-                                        ? 'border-blue-500 bg-blue-50'
-                                        : 'border-gray-200 hover:border-gray-300'
-                                }`}
-                            >
-                                <div className="font-medium text-sm">{type.label}</div>
-                                <div className="text-xs text-gray-500 mt-1">{type.desc}</div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-
                 {/* Create Category */}
                 <div className="mb-6">
                     <h4 className="text-md font-medium text-gray-700 mb-3 flex items-center gap-2">
-                        ➕ Create Operations
+                        ➕ CREATE Operationen
                     </h4>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         {queryTypes.filter(type => type.category === 'create').map(type => (
@@ -138,11 +123,42 @@ const QueryBuilder = () => {
                     </div>
                 </div>
 
+                {/* Query Category */}
+                <div className="mb-6">
+                    <h4 className="text-md font-medium text-gray-700 mb-3 flex items-center gap-2">
+                        🔍 READ Operationen
+                    </h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+                        {queryTypes.filter(type => type.category === 'query').map(type => (
+                            <div
+                                key={type.id}
+                                onClick={() => setActiveQueryType(type.id)}
+                                className={`p-3 border-2 rounded-lg cursor-pointer transition-all ${
+                                    activeQueryType === type.id
+                                        ? 'border-blue-500 bg-blue-50'
+                                        : 'border-gray-200 hover:border-gray-300'
+                                }`}
+                            >
+                                <div className="font-medium text-sm">{type.label}</div>
+                                <div className="text-xs text-gray-500 mt-1">{type.desc}</div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                {/* Update Category */}
+                <div className="mb-6">
+                    <h4 className="text-md font-medium text-gray-700 mb-3 flex items-center gap-2">
+                        🔃️ UPDATE Operationen
+                    </h4>
+                </div>
+                
+
                 {/* Delete Category */}
                 <div className="mb-6">
                     <h4 className="text-md font-medium text-gray-700 mb-3 flex items-center gap-2">
-                        🗑️ Delete Operations
-                        <span className="text-xs text-red-600 bg-red-100 px-2 py-1 rounded">DANGER</span>
+                        🗑️ DELETE Operationen
+                        <span className="text-xs text-red-600 bg-red-100 px-2 py-1 rounded">GEFAHR</span>
                     </h4>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         {queryTypes.filter(type => type.category === 'delete').map(type => (
@@ -161,13 +177,36 @@ const QueryBuilder = () => {
                         ))}
                     </div>
 
-                    {/* Warning für Delete Operations */}
-                    <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg text-sm">
-                        <div className="flex items-center gap-2 text-red-800">
-                            <AlertTriangle size={16} />
-                            <strong>Warnung:</strong> Delete-Operationen sind unwiderruflich!
+                    {/*/!* Warning für Delete Operations *!/*/}
+                    {/*<div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg text-sm">*/}
+                    {/*    <div className="flex items-center gap-2 text-red-800">*/}
+                    {/*        <AlertTriangle size={16} />*/}
+                    {/*        <strong>Warnung:</strong> Delete-Operationen sind unwiderruflich!*/}
+                    {/*    </div>*/}
+                    {/*</div>*/}
+                </div>
+            </div>
+
+            {/* Visualization Category */}
+            <div className="mb-6">
+                <h4 className="text-md font-medium text-gray-700 mb-3 flex items-center gap-2">
+                    🎨 Visualization
+                </h4>
+                <div className="grid grid-cols-1 gap-3">
+                    {queryTypes.filter(type => type.category === 'visualization').map(type => (
+                        <div
+                            key={type.id}
+                            onClick={() => setActiveQueryType(type.id)}
+                            className={`p-3 border-2 rounded-lg cursor-pointer transition-all ${
+                                activeQueryType === type.id
+                                    ? 'border-purple-500 bg-purple-50'
+                                    : 'border-gray-200 hover:border-gray-300'
+                            }`}
+                        >
+                            <div className="font-medium text-sm text-purple-700">{type.label}</div>
+                            <div className="text-xs text-gray-500 mt-1">{type.desc}</div>
                         </div>
-                    </div>
+                    ))}
                 </div>
             </div>
 

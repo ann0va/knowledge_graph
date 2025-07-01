@@ -74,10 +74,10 @@ const HealthCheck = () => {
                 </div>
             </div>
 
-            {/* Server Info */}
-            <div className="text-xs text-gray-500">
-                {health.server}
-            </div>
+            {/*/!* Server Info *!/*/}
+            {/*<div className="text-xs text-gray-500">*/}
+            {/*    {health.server}*/}
+            {/*</div>*/}
         </div>
     );
 };

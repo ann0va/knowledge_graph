@@ -77,6 +77,20 @@ const RelationshipCounter = () => {
         ]
     };
 
+    // 🔧 GERMAN LABELS: Entity Type Labels
+    const getEntityTypeLabel = (type) => {
+        const labels = {
+            'person': '👤 Person',
+            'place': '📍 Ort',
+            'work': '📚 Werk',
+            'award': '🏆 Auszeichnung',
+            'field': '🔬 Fachbereich',
+            'occupation': '💼 Beruf',
+            'workplace': '🏢 Arbeitsplatz'
+        };
+        return labels[type] || type;
+    };
+
     const validateQuery = () => {
         const entityError = queryInterface.validateNotEmpty(selectedEntity, 'Entity');
         if (entityError) {
@@ -405,7 +419,7 @@ const RelationshipCounter = () => {
                                 value={selectedEntity}
                                 onChange={setSelectedEntity}
                                 entityType={selectedEntityType}
-                                placeholder={`${selectedEntityType} auswählen...`}
+                                placeholder={`${getEntityTypeLabel(selectedEntityType)} auswählen...`}
                             />
                         </div>
                     </div>

@@ -1,10 +1,12 @@
 ﻿// src/components/query/EntityFinder.js - COMPLETE VERSION with ALL relationships
 
-import React, { useState } from 'react';
-import { User, Search } from 'lucide-react';
+import React, {useState} from 'react';
+import {User, Search} from 'lucide-react';
 import EntityDropdown from './shared/EntityDropdown';
 import QueryResults from './shared/QueryResults';
-import { QueryInterface } from './shared/QueryInterface';
+import {QueryInterface} from './shared/QueryInterface';
+// import GraphResultsVisualizer from '../visualization/GraphResultsVisualizer';
+
 
 const EntityFinder = () => {
     const [selectedEntity, setSelectedEntity] = useState('');
@@ -18,55 +20,69 @@ const EntityFinder = () => {
     const queryInterface = new QueryInterface();
 
     const entityTypes = [
-        { id: 'person', label: 'Person', icon: User },
-        { id: 'award', label: 'Auszeichnung' },
-        { id: 'field', label: 'Fachbereich' },
-        { id: 'place', label: 'Ort' },
-        { id: 'work', label: 'Werk' },
-        { id: 'workplace', label: 'Arbeitsplatz' },
-        { id: 'occupation', label: 'Beruf' }
+        {id: 'person', label: 'Person', icon: User},
+        {id: 'award', label: 'Auszeichnung'},
+        {id: 'field', label: 'Fachbereich'},
+        {id: 'place', label: 'Ort'},
+        {id: 'work', label: 'Werk'},
+        {id: 'workplace', label: 'Arbeitsplatz'},
+        {id: 'occupation', label: 'Beruf'}
     ];
+
+    // 🔧 GERMAN LABELS: Entity Type Labels
+    const getEntityTypeLabel = (type) => {
+        const labels = {
+            'person': '👤 Person',
+            'place': '📍 Ort',
+            'work': '📚 Werk',
+            'award': '🏆 Auszeichnung',
+            'field': '🔬 Fachbereich',
+            'occupation': '💼 Beruf',
+            'workplace': '🏢 Arbeitsplatz'
+        };
+        return labels[type] || type;
+    };
 
     // ✅ COMPLETE RELATIONSHIPS - alle 15+ Relationships wie im alten QueryBuilder
     const relationships = {
         person: [
-            { id: 'WORKS_IN', label: 'arbeitet in Bereich', target: 'field' },
-            { id: 'HAS_OCCUPATION', label: 'hat Beruf', target: 'occupation' },
-            { id: 'RECEIVED', label: 'erhielt Auszeichnung', target: 'award' },
-            { id: 'BIRTH_IN', label: 'wurde geboren in', target: 'place' },
-            { id: 'DIED_IN', label: 'starb in', target: 'place' },
-            { id: 'WORKED_AT', label: 'arbeitete bei', target: 'workplace' },
-            { id: 'CREATED', label: 'erschuf Werk', target: 'work' },
-            { id: 'STUDENT_OF', label: 'war Student von', target: 'person' },
-            { id: 'ADVISED', label: 'betreute', target: 'person' },
-            { id: 'PARTNER_OF', label: 'war Partner von', target: 'person' },
-            { id: 'RELATIVE_OF', label: 'ist verwandt mit', target: 'person' },
-            { id: 'INFLUENCED_BY', label: 'wurde beeinflusst von', target: 'person' },
-            { id: 'SIGNIFICANT_FOR', label: 'war bedeutsam für', target: 'person' },
-            { id: 'FATHER_OF', label: 'ist Vater von', target: 'person' },
-            { id: 'MOTHER_OF', label: 'ist Mutter von', target: 'person' },
-            { id: 'NATIONAL_OF', label: 'ist Staatsangehöriger von', target: 'place' }
+            {id: 'WORKS_IN', label: 'arbeitet in Bereich', target: 'field'},
+            {id: 'HAS_OCCUPATION', label: 'hat Beruf', target: 'occupation'},
+            {id: 'RECEIVED', label: 'erhielt Auszeichnung', target: 'award'},
+            {id: 'BIRTH_IN', label: 'wurde geboren in', target: 'place'},
+            {id: 'DIED_IN', label: 'starb in', target: 'place'},
+            {id: 'WORKED_AT', label: 'arbeitete bei', target: 'workplace'},
+            {id: 'CREATED', label: 'erschuf Werk', target: 'work'},
+            {id: 'STUDENT_OF', label: 'war Student von', target: 'person'},
+            {id: 'ADVISED', label: 'betreute', target: 'person'},
+            {id: 'PARTNER_OF', label: 'war Partner von', target: 'person'},
+            {id: 'RELATIVE_OF', label: 'ist verwandt mit', target: 'person'},
+            {id: 'INFLUENCED_BY', label: 'wurde beeinflusst von', target: 'person'},
+            {id: 'SIGNIFICANT_FOR', label: 'war bedeutsam für', target: 'person'},
+            {id: 'FATHER_OF', label: 'ist Vater von', target: 'person'},
+            {id: 'MOTHER_OF', label: 'ist Mutter von', target: 'person'},
+            {id: 'NATIONAL_OF', label: 'ist Staatsangehöriger von', target: 'place'}
         ],
         award: [
-            { id: 'AWARDED_TO', label: 'wurde verliehen an', target: 'person' },
-            { id: 'IN_FIELD', label: 'ist im Bereich', target: 'field' }
+            {id: 'AWARDED_TO', label: 'wurde verliehen an', target: 'person'},
+            {id: 'IN_FIELD', label: 'ist im Bereich', target: 'field'}
         ],
         field: [
-            { id: 'WORKED_BY', label: 'wird bearbeitet von', target: 'person' }
+            {id: 'WORKED_BY', label: 'wird bearbeitet von', target: 'person'}
         ],
         place: [
-            { id: 'BIRTH_PLACE_OF', label: 'ist Geburtsort von', target: 'person' },
-            { id: 'DEATH_PLACE_OF', label: 'ist Sterbeort von', target: 'person' },
-            { id: 'WORKPLACE_IN', label: 'hat Arbeitsplätze', target: 'workplace' }
+            {id: 'BIRTH_PLACE_OF', label: 'ist Geburtsort von', target: 'person'},
+            {id: 'DEATH_PLACE_OF', label: 'ist Sterbeort von', target: 'person'},
+            {id: 'WORKPLACE_IN', label: 'hat Arbeitsplätze', target: 'workplace'}
         ],
         work: [
-            { id: 'CREATED_BY', label: 'wurde erschaffen von', target: 'person' }
+            {id: 'CREATED_BY', label: 'wurde erschaffen von', target: 'person'}
         ],
         workplace: [
-            { id: 'EMPLOYED', label: 'beschäftigte', target: 'person' }
+            {id: 'EMPLOYED', label: 'beschäftigte', target: 'person'}
         ],
         occupation: [
-            { id: 'HELD_BY', label: 'wird ausgeübt von', target: 'person' }
+            {id: 'HELD_BY', label: 'wird ausgeübt von', target: 'person'}
         ]
     };
 
@@ -147,7 +163,7 @@ const EntityFinder = () => {
                             value={selectedEntity}
                             onChange={setSelectedEntity}
                             entityType={selectedEntityType}
-                            placeholder={`${selectedEntityType} auswählen...`}
+                            placeholder={`${getEntityTypeLabel(selectedEntityType)} auswählen...`}
                         />
                     </div>
 
@@ -191,12 +207,13 @@ const EntityFinder = () => {
                     >
                         {queryLoading ? (
                             <>
-                                <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                                <div
+                                    className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
                                 Query wird ausgeführt...
                             </>
                         ) : (
                             <>
-                                <Search size={16} />
+                                <Search size={16}/>
                                 Verwandte Entitäten finden
                             </>
                         )}
@@ -210,6 +227,27 @@ const EntityFinder = () => {
                 error={queryError}
                 queryType="find_related"
             />
+
+        {/*    /!* Debug - temporär hinzufügen *!/*/}
+        {/*    {queryResults && (*/}
+        {/*        <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded">*/}
+        {/*            <h4 className="font-medium mb-2">🐛 Debug - QueryResults Structure:</h4>*/}
+        {/*            <pre className="text-xs overflow-x-auto bg-white p-2 rounded">*/}
+        {/*    {JSON.stringify(queryResults, null, 2)}*/}
+        {/*</pre>*/}
+        {/*        </div>*/}
+        {/*    )}*/}
+
+            {/*/!* Graph Visualization - FIXED *!/*/}
+            {/*{queryResults && (*/}
+            {/*    <div className="mt-6">*/}
+            {/*        <GraphResultsVisualizer*/}
+            {/*            results={queryResults}*/}
+            {/*            title="🔍 Found Entities - Graph View"*/}
+            {/*            height="500px"*/}
+            {/*        />*/}
+            {/*    </div>*/}
+            {/*)}*/}
         </div>
     );
 };

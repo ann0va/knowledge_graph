@@ -7,6 +7,8 @@ import { Route, Search } from 'lucide-react';
 import EntityDropdown from './shared/EntityDropdown';
 import QueryResults from './shared/QueryResults';
 import { QueryInterface } from './shared/QueryInterface';
+// import GraphResultsVisualizer from '../visualization/GraphResultsVisualizer';
+
 
 const PathFinder = () => {
     const [selectedEntity, setSelectedEntity] = useState('');
@@ -29,6 +31,20 @@ const PathFinder = () => {
         { id: 'workplace', label: 'Arbeitsplatz' },
         { id: 'occupation', label: 'Beruf' }
     ];
+
+    // 🔧 GERMAN LABELS: Entity Type Labels
+    const getEntityTypeLabel = (type) => {
+        const labels = {
+            'person': '👤 Person',
+            'place': '📍 Ort',
+            'work': '📚 Werk',
+            'award': '🏆 Auszeichnung',
+            'field': '🔬 Fachbereich',
+            'occupation': '💼 Beruf',
+            'workplace': '🏢 Arbeitsplatz'
+        };
+        return labels[type] || type;
+    };
 
     const validateQuery = () => {
         const startError = queryInterface.validateNotEmpty(selectedEntity, 'Start-Entity');
@@ -118,7 +134,7 @@ const PathFinder = () => {
                                 value={selectedEntity}
                                 onChange={setSelectedEntity}
                                 entityType={selectedEntityType}
-                                placeholder={`${selectedEntityType} auswählen...`}
+                                placeholder={`${getEntityTypeLabel(selectedEntityType)} auswählen...`}
                             />
                         </div>
                     </div>
@@ -153,7 +169,7 @@ const PathFinder = () => {
                                 value={targetEntity}
                                 onChange={setTargetEntity}
                                 entityType={targetEntityType}
-                                placeholder={`${targetEntityType} auswählen...`}
+                                placeholder={`${getEntityTypeLabel(targetEntityType)} auswählen...`}
                             />
                         </div>
                     </div>
@@ -201,6 +217,17 @@ const PathFinder = () => {
                 error={queryError}
                 queryType="find_path"
             />
+
+            {/*/!* Graph Visualization - FIXED *!/*/}
+            {/*{queryResults && (*/}
+            {/*    <div className="mt-6">*/}
+            {/*        <GraphResultsVisualizer*/}
+            {/*            results={queryResults}*/}
+            {/*            title="🛤️ Path Results - Graph View"*/}
+            {/*            height="400px"*/}
+            {/*        />*/}
+            {/*    </div>*/}
+            {/*)}*/}
         </div>
     );
 };

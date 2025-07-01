@@ -928,7 +928,7 @@ class EntityRepository extends BaseRepository {
             oracle: `SELECT id(e) as vertex_id,
                             ${oracleSafeFields.map(field => `e.${field}`).join(',\n                            ')}
                      FROM MATCH (e:${oracleLabel}) ON ${this.defaultGraph}
-                     WHERE e.id = '${wikidataId}' OR id(e) = '${oracleTableName}(${wikidataId})'`,
+                     WHERE id(e) = '${oracleTableName}(${wikidataId})'`,
             memgraph: `MATCH (e:${memgraphLabel} {id: $wikidataId})
                       RETURN id(e) as vertex_id,
                              labels(e) as labels,

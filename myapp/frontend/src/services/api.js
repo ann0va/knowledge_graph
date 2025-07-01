@@ -175,7 +175,7 @@ class ApiService {
     }
 
     // Global Search
-    async globalSearch(query, entityType = null, source = 'both', limit = 10) {
+    async globalSearch(query, entityType = null, source = 'both', limit = 100) {
         const params = new URLSearchParams({ q: query, db: source, limit });
         if (entityType) {
             params.append('type', entityType);
