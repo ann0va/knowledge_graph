@@ -58,7 +58,7 @@ const EntityFinder = () => {
             {id: 'PARTNER_OF', label: 'war Partner von', target: 'person'},
             {id: 'RELATIVE_OF', label: 'ist verwandt mit', target: 'person'},
             {id: 'INFLUENCED_BY', label: 'wurde beeinflusst von', target: 'person'},
-            {id: 'SIGNIFICANT_FOR', label: 'war bedeutsam für', target: 'person'},
+            {id: 'SIGNIFICANT_PERSON_FOR', label: 'war bedeutsam für', target: 'person'},
             {id: 'FATHER_OF', label: 'ist Vater von', target: 'person'},
             {id: 'MOTHER_OF', label: 'ist Mutter von', target: 'person'},
             {id: 'NATIONAL_OF', label: 'ist Staatsangehöriger von', target: 'place'}

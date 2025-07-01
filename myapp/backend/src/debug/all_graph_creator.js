@@ -1,6 +1,6 @@
 ﻿// ALL_GRAPH Creator und Visualizer
 // Erstellt kompletten Graph aus allen Tabellen und visualisiert ihn
-const { OracleGraphRESTClient } = require('./oracle_graph_js_client');
+const { OracleGraphRESTClient } = require('./../services/OracleGraphRESTClient');
 
 class AllGraphCreator {
     constructor() {
