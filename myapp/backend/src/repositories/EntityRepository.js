@@ -917,33 +917,159 @@ class EntityRepository extends BaseRepository {
         return await this.execute(queries, { limit: parseInt(limit) });
     }
 
+
+    // 🔧 ALIAS für UPDATE-Kompatibilität
+    async findByWikidataId(wikidataId) {
+        // Einfach an bestehende findById delegieren
+        return await this.findById(wikidataId);
+    }
+
+    // 🔧 ORACLE FIX: Enhanced findById mit korrektem Oracle Schema
     async findById(wikidataId) {
-        const oracleLabel = this.config.oracle_label;
-        const memgraphLabel = this.config.memgraph_label;
-        const oracleSafeFields = this.config.oracle_safe_fields || ['name'];
-        const memgraphFields = this.config.memgraph_fields;
-        const oracleTableName = this.getOracleTableName();
+        console.log(`🔍 [DEBUG] findById called: ${wikidataId} | DB: ${this.dbType}`);
 
-        const queries = {
-            oracle: `SELECT id(e) as vertex_id,
-                            ${oracleSafeFields.map(field => `e.${field}`).join(',\n                            ')}
-                     FROM MATCH (e:${oracleLabel}) ON ${this.defaultGraph}
-                     WHERE id(e) = '${oracleTableName}(${wikidataId})'`,
-            memgraph: `MATCH (e:${memgraphLabel} {id: $wikidataId})
-                      RETURN id(e) as vertex_id,
-                             labels(e) as labels,
-                             ${memgraphFields.map(field => `e.${field}`).join(',\n                             ')},
-                             properties(e) as all_properties`
-        };
+        if (this.dbType === 'oracle') {
+            // 🚨 ORACLE SPEZIAL-BEHANDLUNG: e.id existiert nicht!
+            const oracleLabel = this.config.oracle_label;
+            const oracleSafeFields = this.config.oracle_safe_fields || ['name'];
+            const oracleTableName = this.getOracleTableName();
 
-        const result = await this.execute(queries, { wikidataId });
+            console.log(`🔍 [ORACLE] Label: ${oracleLabel}, Table: ${oracleTableName}, Fields: ${oracleSafeFields}`);
 
-        if (result && this.dbType === 'oracle' && result.vertex_id) {
-            const match = result.vertex_id.match(/\(([^)]+)\)/);
-            result.wikidata_id = match ? match[1] : wikidataId;
+            // 🔧 STRATEGY 1: Nur vertex_id verwenden (KEIN e.id!)
+            const strategy1Query = `SELECT id(e) as vertex_id,
+                                           ${oracleSafeFields.map(field => `e.${field}`).join(',\n                                           ')}
+                                    FROM MATCH (e:${oracleLabel}) ON ${this.defaultGraph}
+                                    WHERE id(e) = '${oracleTableName}(${wikidataId})'`;
+
+            console.log(`🔍 [ORACLE Strategy 1] Vertex ID only:`, strategy1Query);
+
+            try {
+                const result1 = await this.execute({ oracle: strategy1Query }, {});
+
+                if (result1 && (Array.isArray(result1) ? result1.length > 0 : result1)) {
+                    console.log(`✅ [ORACLE Strategy 1] Success:`, result1);
+
+                    const finalResult = Array.isArray(result1) ? result1[0] : result1;
+
+                    // Oracle Vertex ID Processing
+                    if (finalResult.vertex_id) {
+                        const match = finalResult.vertex_id.match(/\(([^)]+)\)/);
+                        finalResult.wikidata_id = match ? match[1] : wikidataId;
+                    }
+
+                    return finalResult;
+                }
+            } catch (error1) {
+                console.warn(`❌ [ORACLE Strategy 1] Failed:`, error1.message);
+            }
+
+            // 🔧 STRATEGY 2: Direct SQL Fallback
+            console.log(`🔄 [ORACLE Strategy 2] Direct SQL fallback...`);
+
+            try {
+                const { getOracleConnection } = require('../config/database');
+                let connection = await getOracleConnection();
+
+                // First, let's see what columns exist
+                const columnsQuery = `SELECT column_name FROM user_tab_columns WHERE table_name = '${this.config.oracle_table.toUpperCase()}'`;
+                console.log(`🔍 [ORACLE SQL] Checking columns:`, columnsQuery);
+
+                const columnsResult = await connection.execute(columnsQuery);
+                const availableColumns = columnsResult.rows.map(row => row[0].toLowerCase());
+                console.log(`📋 [ORACLE] Available columns:`, availableColumns);
+
+                // Try to find the person by ID in available columns
+                let personQuery;
+                let queryParams;
+
+                if (availableColumns.includes('id')) {
+                    personQuery = `SELECT * FROM ${this.config.oracle_table} WHERE id = :wikidataId`;
+                    queryParams = { wikidataId };
+                } else if (availableColumns.includes('wikidata_id')) {
+                    personQuery = `SELECT * FROM ${this.config.oracle_table} WHERE wikidata_id = :wikidataId`;
+                    queryParams = { wikidataId };
+                } else if (availableColumns.includes('person_id')) {
+                    personQuery = `SELECT * FROM ${this.config.oracle_table} WHERE person_id = :wikidataId`;
+                    queryParams = { wikidataId };
+                } else {
+                    // Last resort: try name-based lookup if we have the person name
+                    personQuery = `SELECT * FROM ${this.config.oracle_table} WHERE rownum <= 10`;
+                    queryParams = {};
+                }
+
+                console.log(`🔍 [ORACLE SQL] Query:`, personQuery);
+                console.log(`🔍 [ORACLE SQL] Params:`, queryParams);
+
+                const sqlResult = await connection.execute(personQuery, queryParams);
+                await connection.close();
+
+                console.log(`📋 [ORACLE SQL] Raw result:`, {
+                    rowsCount: sqlResult.rows?.length,
+                    metaData: sqlResult.metaData?.map(col => ({ name: col.name, type: col.dbType })),
+                    firstRow: sqlResult.rows?.[0]
+                });
+
+                if (sqlResult.rows && sqlResult.rows.length > 0) {
+                    // Convert Oracle SQL result to expected format
+                    const fieldNames = sqlResult.metaData.map(col => col.name.toLowerCase());
+
+                    // Find the right row if multiple returned
+                    let targetRow = sqlResult.rows[0]; // Default to first
+
+                    if (sqlResult.rows.length > 1) {
+                        // Try to find exact match by different ID fields
+                        for (let i = 0; i < sqlResult.rows.length; i++) {
+                            const row = sqlResult.rows[i];
+                            for (let j = 0; j < fieldNames.length; j++) {
+                                const value = row[j];
+                                if (value === wikidataId || value === `Q${wikidataId}` ||
+                                    (typeof value === 'string' && value.includes(wikidataId))) {
+                                    targetRow = row;
+                                    console.log(`🎯 [ORACLE] Found exact match in row ${i}, field ${fieldNames[j]}`);
+                                    break;
+                                }
+                            }
+                        }
+                    }
+
+                    const result = {};
+                    fieldNames.forEach((fieldName, index) => {
+                        result[fieldName] = targetRow[index];
+                    });
+
+                    // Add expected properties
+                    result.vertex_id = `${oracleTableName}(${wikidataId})`;
+                    result.wikidata_id = wikidataId;
+
+                    console.log(`✅ [ORACLE SQL] Converted result:`, result);
+                    return result;
+
+                } else {
+                    throw new Error(`Person with ID ${wikidataId} not found in Oracle table ${this.config.oracle_table}`);
+                }
+
+            } catch (sqlError) {
+                console.error(`❌ [ORACLE SQL] Direct query failed:`, sqlError);
+                throw new Error(`Oracle person lookup failed: ${sqlError.message}`);
+            }
+
+        } else {
+            // Memgraph - bleibt unverändert
+            const memgraphLabel = this.config.memgraph_label;
+            const memgraphFields = this.config.memgraph_fields;
+
+            const queries = {
+                memgraph: `MATCH (e:${memgraphLabel} {id: $wikidataId})
+                          RETURN id(e) as vertex_id,
+                                 labels(e) as labels,
+                                 ${memgraphFields.map(field => `e.${field}`).join(',\n                                 ')},
+                                 properties(e) as all_properties`
+            };
+
+            const result = await this.execute(queries, { wikidataId });
+            return Array.isArray(result) ? result[0] : result;
         }
-
-        return Array.isArray(result) ? result[0] : result;
     }
 
     getOracleTableName() {
