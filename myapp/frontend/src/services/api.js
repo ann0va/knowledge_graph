@@ -307,6 +307,7 @@ class ApiService {
         }
     }
 
+    
 // 🔍 VALIDATE DELETION: Vor dem Löschen validieren
     validateDeletion(type, data) {
         if (type === 'node') {
@@ -348,6 +349,107 @@ class ApiService {
         return 'Unknown deletion type';
     }
 
+    // 🔧 UPDATE PERSON PROPERTY: Spezielle Methode nur für Personen
+    async updatePersonProperty(wikidataId, propertyName, newValue, database = 'memgraph') {
+        try {
+            console.log(`✏️ Updating person ${wikidataId}: ${propertyName} = "${newValue}"`);
+
+            const response = await api.patch(`/entity/person/${wikidataId}/properties?db=${database}`, {
+                property: propertyName,
+                value: newValue
+            });
+            return response.data;
+        } catch (error) {
+            console.error(`❌ Person property update failed:`, error);
+            throw new Error(error.response?.data?.error || error.message);
+        }
+    }
+
+    // 🔧 GET PERSON PROPERTIES: Eigenschaften einer Person abrufen
+    async getPersonProperties(wikidataId, database = 'memgraph') {
+        try {
+            const response = await api.get(`/entity/person/${wikidataId}/properties?db=${database}`);
+            return response.data;
+        } catch (error) {
+            console.error(`❌ Failed to get person properties:`, error);
+            throw new Error(error.response?.data?.error || error.message);
+        }
+    }
+
+    // 🔧 VALIDATE PERSON UPDATE: Spezielle Validierung für Personen
+    validatePersonUpdate(propertyName, oldValue, newValue) {
+        if (!propertyName || propertyName.trim() === '') {
+            return 'Property name is required';
+        }
+
+        if (newValue === null || newValue === undefined || newValue.toString().trim() === '') {
+            return 'New value cannot be empty';
+        }
+
+        if (newValue === oldValue) {
+            return 'New value must be different from current value';
+        }
+
+        // Person-spezifische Validierung
+        const personProperties = ['name', 'birth_date', 'death_date', 'gender', 'description'];
+        if (!personProperties.includes(propertyName)) {
+            return `Invalid person property: ${propertyName}. Valid properties: ${personProperties.join(', ')}`;
+        }
+
+        // Name-Validierung
+        if (propertyName === 'name' && newValue.length > 200) {
+            return 'Name must be less than 200 characters';
+        }
+
+        // Datum-Validierung
+        if ((propertyName === 'birth_date' || propertyName === 'death_date') && newValue) {
+            const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+            if (!dateRegex.test(newValue)) {
+                return 'Date must be in YYYY-MM-DD format';
+            }
+
+            const date = new Date(newValue);
+            if (isNaN(date.getTime())) {
+                return 'Invalid date';
+            }
+
+            // Datum darf nicht in der Zukunft liegen
+            if (date > new Date()) {
+                return 'Date cannot be in the future';
+            }
+        }
+
+        // Geschlecht-Validierung (optional)
+        if (propertyName === 'gender' && newValue) {
+            const validGenders = ['male', 'female', 'other', 'unknown', 'männlich', 'weiblich', 'divers', 'unbekannt'];
+            // Flexible Validierung - erlaubt verschiedene Werte
+            // if (!validGenders.some(g => g.toLowerCase() === newValue.toLowerCase())) {
+            //     return `Gender should be one of: ${validGenders.join(', ')}`;
+            // }
+        }
+
+        return null; // Keine Fehler
+    }
+
+    // 🔧 GET PERSON BY ID: Vereinfachte Person-Abfrage
+    async getPerson(wikidataId, database = 'memgraph') {
+        try {
+            return await this.getEntity('person', wikidataId, database);
+        } catch (error) {
+            throw new Error(`Person not found: ${error.message}`);
+        }
+    }
+
+    // 🔧 SEARCH PERSONS: Vereinfachte Personen-Suche
+    async searchPersons(searchTerm, database = 'both', limit = 100) {
+        try {
+            return await this.searchEntityNames('person', searchTerm, database, limit);
+        } catch (error) {
+            throw new Error(`Person search failed: ${error.message}`);
+        }
+    }
+
+    
     // Spezifische Entity-Methoden
     async getPeople(params) {
         return this.getEntities('person', params);

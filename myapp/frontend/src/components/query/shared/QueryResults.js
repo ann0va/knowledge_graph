@@ -2,7 +2,8 @@
 import React from 'react';
 import { Database, AlertCircle, CheckCircle, BarChart3, Route, Users, TrendingUp } from 'lucide-react';
 
-const QueryResults = ({ results, error, queryType }) => {
+// Updated main QueryResults component
+const QueryResults = ({ results, error, queryType, isIncomingQuery = false }) => {
     // Error Display
     if (error) {
         return (
@@ -25,6 +26,7 @@ const QueryResults = ({ results, error, queryType }) => {
     const getQueryIcon = () => {
         switch (queryType) {
             case 'find_related': return <Users size={20} className="mr-2" />;
+            case 'find_incoming': return <Users size={20} className="mr-2" />; // 🆕 NEW
             case 'find_path': return <Route size={20} className="mr-2" />;
             case 'count_relations': return <BarChart3 size={20} className="mr-2" />;
             default: return <Database size={20} className="mr-2" />;
@@ -35,6 +37,7 @@ const QueryResults = ({ results, error, queryType }) => {
     const getQueryLabel = () => {
         switch (queryType) {
             case 'find_related': return 'Verwandte Entitäten';
+            case 'find_incoming': return 'Verwandte Personen'; // 🆕 NEW
             case 'find_path': return 'Pfad-Ergebnisse';
             case 'count_relations': return 'Beziehungs-Statistiken';
             default: return 'Query-Ergebnisse';
@@ -60,7 +63,7 @@ const QueryResults = ({ results, error, queryType }) => {
                                 ` (${results.results.oracle.totalCount || 0})` :
                                 queryType === 'find_path' ?
                                     ` (${results.results.oracle.pathsFound || 0})` :
-                                    ` (${results.results.oracle.count || 0})`
+                                    ` (${results.results.oracle.count || results.results.oracle.relationships?.length || 0})`
                             }
                         </h4>
 
@@ -72,6 +75,7 @@ const QueryResults = ({ results, error, queryType }) => {
                             <OracleResultsDisplay
                                 data={results.results.oracle}
                                 queryType={queryType}
+                                isIncomingQuery={isIncomingQuery}
                             />
                         )}
                     </div>
@@ -87,7 +91,7 @@ const QueryResults = ({ results, error, queryType }) => {
                                 ` (${results.results.memgraph.totalCount || 0})` :
                                 queryType === 'find_path' ?
                                     ` (${results.results.memgraph.pathsFound || 0})` :
-                                    ` (${results.results.memgraph.count || 0})`
+                                    ` (${results.results.memgraph.count || results.results.memgraph.relationships?.length || 0})`
                             }
                         </h4>
 
@@ -99,6 +103,7 @@ const QueryResults = ({ results, error, queryType }) => {
                             <MemgraphResultsDisplay
                                 data={results.results.memgraph}
                                 queryType={queryType}
+                                isIncomingQuery={isIncomingQuery}
                             />
                         )}
                     </div>
@@ -148,25 +153,24 @@ const QueryResults = ({ results, error, queryType }) => {
     );
 };
 
-// Oracle Results Display Component
-const OracleResultsDisplay = ({ data, queryType }) => {
+// Updated Display Components to pass isIncomingQuery prop
+const OracleResultsDisplay = ({ data, queryType, isIncomingQuery = false }) => {
     if (queryType === 'count_relations') {
         return <OracleCountResults data={data} />;
     } else if (queryType === 'find_path') {
         return <OraclePathResults data={data} />;
     } else {
-        return <OracleRelationshipResults data={data} />;
+        return <OracleRelationshipResults data={data} isIncomingQuery={isIncomingQuery} />;
     }
 };
 
-// Memgraph Results Display Component
-const MemgraphResultsDisplay = ({ data, queryType }) => {
+const MemgraphResultsDisplay = ({ data, queryType, isIncomingQuery = false }) => {
     if (queryType === 'count_relations') {
         return <MemgraphCountResults data={data} />;
     } else if (queryType === 'find_path') {
         return <MemgraphPathResults data={data} />;
     } else {
-        return <MemgraphRelationshipResults data={data} />;
+        return <MemgraphRelationshipResults data={data} isIncomingQuery={isIncomingQuery} />;
     }
 };
 
@@ -328,8 +332,8 @@ const MemgraphPathResults = ({ data }) => {
     );
 };
 
-// Oracle Relationship Results
-const OracleRelationshipResults = ({ data }) => {
+// Oracle Relationship Results - UPDATED für find_incoming Support
+const OracleRelationshipResults = ({ data, isIncomingQuery = false }) => {
     const { relationships } = data;
 
     if (!relationships || relationships.length === 0) {
@@ -342,21 +346,44 @@ const OracleRelationshipResults = ({ data }) => {
 
     return (
         <div className="space-y-2 max-h-96 overflow-y-auto">
-            {relationships.map((rel, idx) => (
-                <div key={idx} className="p-3 bg-red-50 rounded border border-red-200 text-sm">
-                    <div className="font-medium">{rel.target_name || rel.TARGET_NAME || 'Unbekannt'}</div>
-                    <div className="text-gray-600">ID: {rel.target_entity_id || rel.TARGET_VERTEX_ID || 'N/A'}</div>
-                    <div className="text-xs text-gray-500">
-                        Typ: {rel.relationship_type || rel.RELATIONSHIP_TYPE || 'N/A'}
+            {relationships.map((rel, idx) => {
+                // 🆕 NEW: Handle both find_related and find_incoming data structures
+                let displayName, displayId, relType;
+
+                if (isIncomingQuery) {
+                    // For find_incoming: show source data (persons who point TO the entity)
+                    displayName = rel.source_name || rel.SOURCE_NAME || rel.target_name || rel.TARGET_NAME || 'Unbekannt';
+                    displayId = rel.source_entity_id || rel.SOURCE_ENTITY_ID || rel.target_entity_id || rel.TARGET_VERTEX_ID || 'N/A';
+                    relType = rel.relationship_type || rel.RELATIONSHIP_TYPE || 'N/A';
+                } else {
+                    // For find_related: show target data (entities the person points TO)
+                    displayName = rel.target_name || rel.TARGET_NAME || 'Unbekannt';
+                    displayId = rel.target_entity_id || rel.TARGET_VERTEX_ID || 'N/A';
+                    relType = rel.relationship_type || rel.RELATIONSHIP_TYPE || 'N/A';
+                }
+
+                return (
+                    <div key={idx} className="p-3 bg-red-50 rounded border border-red-200 text-sm">
+                        <div className="font-medium">{displayName}</div>
+                        <div className="text-gray-600">ID: {displayId}</div>
+                        <div className="text-xs text-gray-500">
+                            Typ: {relType}
+                        </div>
+                        {/* Debug info */}
+                        {rel._transformed && (
+                            <div className="text-xs text-green-600 mt-1">
+                                ✅ Transformiert für Anzeige
+                            </div>
+                        )}
                     </div>
-                </div>
-            ))}
+                );
+            })}
         </div>
     );
 };
 
-// Memgraph Relationship Results
-const MemgraphRelationshipResults = ({ data }) => {
+// Memgraph Relationship Results - UPDATED für find_incoming Support  
+const MemgraphRelationshipResults = ({ data, isIncomingQuery = false }) => {
     const { relationships } = data;
 
     if (!relationships || relationships.length === 0) {
@@ -369,18 +396,43 @@ const MemgraphRelationshipResults = ({ data }) => {
 
     return (
         <div className="space-y-2 max-h-96 overflow-y-auto">
-            {relationships.map((rel, idx) => (
-                <div key={idx} className="p-3 bg-blue-50 rounded border border-blue-200 text-sm">
-                    <div className="font-medium">{rel.target_name || 'Unbekannt'}</div>
-                    <div className="text-gray-600">ID: {rel.target_entity_id || 'N/A'}</div>
-                    <div className="text-xs text-gray-500">
-                        Labels: {rel.target_labels?.join(', ') || 'N/A'}
+            {relationships.map((rel, idx) => {
+                // 🆕 NEW: Handle both find_related and find_incoming data structures
+                let displayName, displayId, displayLabels, relType;
+
+                if (isIncomingQuery) {
+                    // For find_incoming: show source data (persons who point TO the entity)
+                    displayName = rel.source_name || rel.target_name || 'Unbekannt';
+                    displayId = rel.source_entity_id || rel.target_entity_id || 'N/A';
+                    displayLabels = rel.source_labels || rel.target_labels || ['N/A'];
+                    relType = rel.relationship_type || 'N/A';
+                } else {
+                    // For find_related: show target data (entities the person points TO)
+                    displayName = rel.target_name || 'Unbekannt';
+                    displayId = rel.target_entity_id || 'N/A';
+                    displayLabels = rel.target_labels || ['N/A'];
+                    relType = rel.relationship_type || 'N/A';
+                }
+
+                return (
+                    <div key={idx} className="p-3 bg-blue-50 rounded border border-blue-200 text-sm">
+                        <div className="font-medium">{displayName}</div>
+                        <div className="text-gray-600">ID: {displayId}</div>
+                        <div className="text-xs text-gray-500">
+                            Labels: {Array.isArray(displayLabels) ? displayLabels.join(', ') : displayLabels}
+                        </div>
+                        <div className="text-xs text-gray-500">
+                            Typ: {relType}
+                        </div>
+                        {/* Debug info */}
+                        {rel._transformed && (
+                            <div className="text-xs text-green-600 mt-1">
+                                ✅ Transformiert für Anzeige
+                            </div>
+                        )}
                     </div>
-                    <div className="text-xs text-gray-500">
-                        Typ: {rel.relationship_type || 'N/A'}
-                    </div>
-                </div>
-            ))}
+                );
+            })}
         </div>
     );
 };

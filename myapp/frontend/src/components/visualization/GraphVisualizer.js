@@ -17,13 +17,9 @@ import '@xyflow/react/dist/style.css';
 import {
     Database,
     Search,
-    Plus,
-    Trash2,
     RefreshCw,
     Eye,
-    Filter,
     Download,
-    Upload,
     Zap,
     Target,
     Layers,

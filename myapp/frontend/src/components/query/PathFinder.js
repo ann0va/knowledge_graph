@@ -7,8 +7,9 @@ import { Route, Search } from 'lucide-react';
 import EntityDropdown from './shared/EntityDropdown';
 import QueryResults from './shared/QueryResults';
 import { QueryInterface } from './shared/QueryInterface';
-// import GraphResultsVisualizer from '../visualization/GraphResultsVisualizer';
-
+import {
+    getEntityTypeLabel,
+} from './shared/LabelTranslator';
 
 const PathFinder = () => {
     const [selectedEntity, setSelectedEntity] = useState('');
@@ -31,20 +32,7 @@ const PathFinder = () => {
         { id: 'workplace', label: 'Arbeitsplatz' },
         { id: 'occupation', label: 'Beruf' }
     ];
-
-    // 🔧 GERMAN LABELS: Entity Type Labels
-    const getEntityTypeLabel = (type) => {
-        const labels = {
-            'person': '👤 Person',
-            'place': '📍 Ort',
-            'work': '📚 Werk',
-            'award': '🏆 Auszeichnung',
-            'field': '🔬 Fachbereich',
-            'occupation': '💼 Beruf',
-            'workplace': '🏢 Arbeitsplatz'
-        };
-        return labels[type] || type;
-    };
+    
 
     const validateQuery = () => {
         const startError = queryInterface.validateNotEmpty(selectedEntity, 'Start-Entity');

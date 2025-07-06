@@ -192,7 +192,7 @@ const EntityDropdown = ({
                     {database === 'both' && (
                         <div className="flex items-center gap-1 text-xs text-gray-500">
                             <Database size={12} />
-                            <span>Both</span>
+                            <span>Beide</span>
                         </div>
                     )}
                     <ChevronDown size={16} className={`transform transition-transform ${isOpen ? 'rotate-180' : ''}`} />
@@ -230,7 +230,7 @@ const EntityDropdown = ({
                                 <div className="flex items-center gap-1">
                                     <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
                                     <div className="w-2 h-2 bg-red-500 rounded-full"></div>
-                                    <span>Both</span>
+                                    <span>Beide</span>
                                 </div>
                             </div>
                         )}

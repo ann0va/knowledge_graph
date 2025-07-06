@@ -2,7 +2,10 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Save, RefreshCw, CheckCircle, AlertCircle } from 'lucide-react';
 import apiService from '../../services/api';
-
+import {
+    getEntityTypeLabel,
+    getFieldLabel,
+} from './shared/LabelTranslator';
 const NodeCreator = () => {
     const [entityType, setEntityType] = useState('person');
     const [database, setDatabase] = useState('both'); // 🔧 FIXED: Default to both
@@ -40,33 +43,7 @@ const NodeCreator = () => {
     const optionalFields = currentConfig.optional_fields || [];
     const allFields = [...requiredFields, ...optionalFields];
 
-    // 🔧 GERMAN LABELS: Entity Type Labels
-    const getEntityTypeLabel = (type) => {
-        const labels = {
-            'person': '👤 Person',
-            'place': '📍 Ort',
-            'work': '📚 Werk',
-            'award': '🏆 Auszeichnung',
-            'field': '🔬 Fachbereich',
-            'occupation': '💼 Beruf',
-            'workplace': '🏢 Arbeitsplatz'
-        };
-        return labels[type] || type;
-    };
-
-    // 🔧 GERMAN LABELS: Field Labels
-    const getFieldLabel = (field) => {
-        const labels = {
-            'id': 'Wikidata-ID',
-            'name': 'Name',
-            'birth_date': 'Geburtsdatum',
-            'death_date': 'Sterbedatum',
-            'gender': 'Geschlecht',
-            'description': 'Beschreibung',
-            'type': 'Typ'
-        };
-        return labels[field] || field.replace('_', ' ').toUpperCase();
-    };
+    
 
     // Input-Änderung
     const handleInputChange = (field, value) => {

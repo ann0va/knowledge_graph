@@ -403,6 +403,54 @@ async function executeStructuredQuery(database, queryType, entityType, entityNam
         };
     }
 
+    // In executeStructuredQuery function, nach find_incoming:
+    if (queryType === 'find_connected_persons') {
+        // 1. Entity finden
+        const entityRepo = repositoryFactory.getRepository(entityType, database);
+        const entities = await entityRepo.searchByName(entityName, 5);
+
+        if (!entities || entities.length === 0) {
+            throw new Error(`Entity "${entityName}" not found in ${database}`);
+        }
+
+        const entity = entities[0];
+        let wikidataId;
+
+        // Wikidata ID extrahieren (wie bei anderen Query-Types)
+        if (database === 'oracle') {
+            const vertexId = entity.vertex_id || entity.VERTEX_ID;
+            if (vertexId) {
+                const match = vertexId.match(/\(([^)]+)\)/);
+                wikidataId = match ? match[1] : null;
+            }
+            if (!wikidataId) {
+                wikidataId = entity.id || entity.ID;
+            }
+        } else {
+            wikidataId = entity['e.id'] || entity.id;
+        }
+
+        if (!wikidataId) {
+            throw new Error(`Could not extract Wikidata ID for "${entityName}" in ${database}`);
+        }
+
+        console.log(`📍 Found entity: ${entityName} → ${wikidataId} in ${database}`);
+
+        // 2. Connected persons finden
+        const connectedPersons = await entityRepo.findConnectedPersons(wikidataId);
+
+        return {
+            sourceEntity: entity,
+            relationships: connectedPersons,
+            count: connectedPersons.length,
+            queryInfo: {
+                wikidataId,
+                method: 'find_connected_persons',
+                direction: 'incoming_persons_only'
+            }
+        };
+    }
+
     // Weitere Query-Typen hier implementieren...
     throw new Error(`Query type "${queryType}" not implemented yet`);
 }
@@ -458,7 +506,7 @@ async function findShortestPathOracle(startId, targetId, startEntityType, target
                 AND end.name = '${targetEntityName}'
                 COLUMNS(start.name AS start_name,
                 end.name AS end_name,
-                COUNT(EDGE_ID(e)) AS path_length))
+                COUNT (EDGE_ID(e)) AS path_length))
         `;
 
         console.log(`🔍 Oracle PGQL query:`, shortestPathQuery);
@@ -490,7 +538,8 @@ async function findShortestPathOracle(startId, targetId, startEntityType, target
                 ON ALL_GRAPH
                 WHERE
                 start.name = '${startEntityName}' AND
-                end.name = '${targetEntityName}'
+                end
+                .name = '${targetEntityName}'
             `;
 
             console.log(`🔍 Oracle fallback query:`, fallbackQuery);
@@ -561,11 +610,13 @@ async function findShortestPathOracle(startId, targetId, startEntityType, target
                 WHERE
                 start.name = '${startEntityName}'
                   AND
-                end.name = '${targetEntityName}'
+                end
+                .name = '${targetEntityName}'
                   AND start IS LABELED
                 ${getOracleLabelFromEntityType(startEntityType)}
                 AND
-                end IS LABELED
+                end
+                IS LABELED
                 ${getOracleLabelFromEntityType(targetEntityType)}
                 FETCH
                 FIRST
@@ -866,6 +917,330 @@ async function executePathFindingQuery(queryData, oracleRepo, memgraphRepo) {
     return results;
 }
 
+// 🔧 PATCH /api/entity/{entityType}/{wikidataId}/properties - Node Property Update
+router.patch('/entity/:entityType/:wikidataId/properties', async (req, res) => {
+    try {
+        const {entityType, wikidataId} = req.params;
+        const {property, value} = req.body;
+        const {db = 'memgraph'} = req.query;
+
+        console.log(`✏️ UPDATE Request: ${entityType}:${wikidataId} | ${property} = "${value}" | DB: ${db}`);
+
+        // Validierung
+        if (!property || !value) {
+            return res.status(400).json({
+                success: false,
+                error: 'Property name and value are required'
+            });
+        }
+
+        // System-Properties schützen
+        const protectedProperties = ['id', 'ID', 'VERTEX_ID', 'vertex_id'];
+        if (protectedProperties.includes(property)) {
+            return res.status(400).json({
+                success: false,
+                error: `Property '${property}' is protected and cannot be modified`
+            });
+        }
+
+        const repo = repositoryFactory.getRepository(entityType, db);
+
+        // 1. Prüfen ob Node existiert
+        let existingNode;
+        try {
+            existingNode = await repo.findByWikidataId(wikidataId);
+            if (!existingNode) {
+                return res.status(404).json({
+                    success: false,
+                    error: `Node with ID ${wikidataId} not found in ${db}`
+                });
+            }
+        } catch (findError) {
+            console.error('Error finding node for update:', findError);
+            return res.status(404).json({
+                success: false,
+                error: `Node with ID ${wikidataId} not found: ${findError.message}`
+            });
+        }
+
+        // 2. Aktuellen Wert abrufen
+        let currentValue = null;
+        if (db === 'oracle') {
+            currentValue = existingNode[property] || existingNode[property.toUpperCase()];
+        } else {
+            currentValue = existingNode[property] || existingNode[`e.${property}`];
+        }
+
+        console.log(`📝 Current value for ${property}:`, currentValue);
+        console.log(`📝 New value:`, value);
+
+        // 3. Update Query ausführen
+        let updateResult;
+
+        if (db === 'memgraph') {
+            // Memgraph Cypher UPDATE
+            const cypherQuery = `
+                    MATCH (n:${entityType} {id: $wikidataId})
+                    SET n.${property} = $newValue
+                    RETURN n
+                `;
+
+            console.log(`🔍 Memgraph UPDATE query:`, cypherQuery);
+
+            updateResult = await repo.executeQuery(cypherQuery, {
+                wikidataId,
+                newValue: value
+            });
+
+        } else if (db === 'oracle') {
+            // Oracle PGQL UPDATE
+            const pgqlQuery = `
+                UPDATE n
+                SET (${property} = ?)
+                FROM MATCH (n IS ${entityType.toUpperCase()})
+                ON ALL_GRAPH
+                WHERE n.id = ?
+            `;
+
+            console.log(`🔍 Oracle UPDATE query:`, pgqlQuery);
+
+            updateResult = await repo.execute({
+                oracle: pgqlQuery
+            }, [value, wikidataId]);
+
+        } else {
+            throw new Error(`Unsupported database: ${db}`);
+        }
+
+        console.log(`✅ Update result:`, updateResult);
+
+        // 4. Aktualisierte Node abrufen für Bestätigung
+        let updatedNode;
+        try {
+            updatedNode = await repo.findByWikidataId(wikidataId);
+        } catch (fetchError) {
+            console.warn('Could not fetch updated node:', fetchError);
+            updatedNode = null;
+        }
+
+        // 5. Response
+        res.json({
+            success: true,
+            message: `Property '${property}' updated successfully`,
+            data: {
+                database: db,
+                updatedNode: {
+                    entityType,
+                    wikidataId,
+                    name: updatedNode?.name || updatedNode?.NAME || 'Unknown'
+                },
+                updatedProperty: {
+                    name: property,
+                    oldValue: currentValue,
+                    newValue: value,
+                    changed: currentValue !== value
+                },
+                nodeData: updatedNode,
+                updateQuery: db === 'memgraph' ?
+                    `MATCH (n:${entityType} {id: '${wikidataId}'}) SET n.${property} = '${value}' RETURN n` :
+                    `UPDATE n
+                     SET (${property} = '${value}')
+                     FROM MATCH (n IS ${entityType.toUpperCase()})
+                     ON ALL_GRAPH
+                     WHERE n.id = '${wikidataId}'`
+            },
+            metadata: {
+                timestamp: new Date().toISOString(),
+                entityType,
+                wikidataId,
+                database: db,
+                operation: 'UPDATE_PROPERTY'
+            }
+        });
+
+    } catch (error) {
+        console.error('Property update error:', error);
+        res.status(500).json({
+            success: false,
+            error: error.message,
+            details: {
+                operation: 'UPDATE_PROPERTY',
+                entityType: req.params.entityType,
+                wikidataId: req.params.wikidataId,
+                property: req.body.property,
+                database: req.query.db || 'memgraph'
+            }
+        });
+    }
+});
+
+// 🔧 GET /api/entity/{entityType}/{wikidataId}/properties - Node Properties abrufen
+router.get('/entity/:entityType/:wikidataId/properties', async (req, res) => {
+    try {
+        const {entityType, wikidataId} = req.params;
+        const {db = 'memgraph'} = req.query;
+
+        console.log(`📋 GET Properties: ${entityType}:${wikidataId} | DB: ${db}`);
+
+        const repo = repositoryFactory.getRepository(entityType, db);
+
+        // Node abrufen
+        const node = await repo.findByWikidataId(wikidataId);
+
+        if (!node) {
+            return res.status(404).json({
+                success: false,
+                error: `Node with ID ${wikidataId} not found in ${db}`
+            });
+        }
+
+        // Properties extrahieren (System-Properties ausschließen)
+        const systemProperties = ['id', 'ID', 'VERTEX_ID', 'vertex_id'];
+        const properties = {};
+
+        Object.keys(node).forEach(key => {
+            if (!systemProperties.includes(key)) {
+                properties[key] = node[key];
+            }
+        });
+
+        res.json({
+            success: true,
+            data: {
+                entityType,
+                wikidataId,
+                database: db,
+                properties,
+                editableProperties: Object.keys(properties),
+                systemProperties: systemProperties.filter(prop => node[prop] !== undefined),
+                nodeData: node
+            },
+            metadata: {
+                timestamp: new Date().toISOString(),
+                propertyCount: Object.keys(properties).length
+            }
+        });
+
+    } catch (error) {
+        console.error('Get properties error:', error);
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+});
+
+// 🔧 PATCH /api/entity/{entityType}/{wikidataId}/properties/bulk - Mehrere Properties gleichzeitig updaten
+router.patch('/entity/:entityType/:wikidataId/properties/bulk', async (req, res) => {
+    try {
+        const {entityType, wikidataId} = req.params;
+        const {updates} = req.body; // Array von {property, value} Objekten
+        const {db = 'memgraph'} = req.query;
+
+        console.log(`✏️ BULK UPDATE: ${entityType}:${wikidataId} | ${updates.length} properties | DB: ${db}`);
+
+        if (!updates || !Array.isArray(updates) || updates.length === 0) {
+            return res.status(400).json({
+                success: false,
+                error: 'Updates array is required and must not be empty'
+            });
+        }
+
+        const repo = repositoryFactory.getRepository(entityType, db);
+
+        // 1. Node existiert?
+        const existingNode = await repo.findByWikidataId(wikidataId);
+        if (!existingNode) {
+            return res.status(404).json({
+                success: false,
+                error: `Node with ID ${wikidataId} not found in ${db}`
+            });
+        }
+
+        // 2. Bulk Update Query generieren
+        let updateResult;
+        const updatedProperties = [];
+
+        if (db === 'memgraph') {
+            // Cypher SET Statements zusammenbauen
+            const setStatements = updates.map((update, index) =>
+                `n.${update.property} = $value${index}`
+            ).join(', ');
+
+            const params = {wikidataId};
+            updates.forEach((update, index) => {
+                params[`value${index}`] = update.value;
+            });
+
+            const cypherQuery = `
+                    MATCH (n:${entityType} {id: $wikidataId})
+                    SET ${setStatements}
+                    RETURN n
+                `;
+
+            updateResult = await repo.executeQuery(cypherQuery, params);
+
+        } else if (db === 'oracle') {
+            // Oracle: Einzelne Updates nacheinander (PGQL unterstützt keine Bulk-Property-Updates)
+            for (const update of updates) {
+                const pgqlQuery = `
+                    UPDATE n
+                    SET (${update.property} = ?)
+                    FROM MATCH (n IS ${entityType.toUpperCase()})
+                    ON ALL_GRAPH
+                    WHERE n.id = ?
+                `;
+
+                await repo.execute({
+                    oracle: pgqlQuery
+                }, [update.value, wikidataId]);
+
+                updatedProperties.push({
+                    property: update.property,
+                    newValue: update.value,
+                    oldValue: existingNode[update.property] || existingNode[update.property.toUpperCase()]
+                });
+            }
+        }
+
+        // 3. Aktualisierte Node abrufen
+        const updatedNode = await repo.findByWikidataId(wikidataId);
+
+        res.json({
+            success: true,
+            message: `${updates.length} properties updated successfully`,
+            data: {
+                database: db,
+                updatedNode: {
+                    entityType,
+                    wikidataId,
+                    name: updatedNode?.name || updatedNode?.NAME || 'Unknown'
+                },
+                updatedProperties: updates.map(update => ({
+                    property: update.property,
+                    newValue: update.value,
+                    oldValue: existingNode[update.property] || existingNode[update.property.toUpperCase()],
+                    changed: true
+                })),
+                nodeData: updatedNode
+            },
+            metadata: {
+                timestamp: new Date().toISOString(),
+                propertiesUpdated: updates.length,
+                database: db,
+                operation: 'BULK_UPDATE_PROPERTIES'
+            }
+        });
+
+    } catch (error) {
+        console.error('Bulk property update error:', error);
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+});
+
 // 🎯 HELPER: Oracle Label von Entity Type
 function getOracleLabelFromEntityType(entityType) {
     const labelMap = {
@@ -913,7 +1288,7 @@ function generateOracleQuery(queryType, entityType, entityName, relationshipType
                     AND end.name = '${targetEntityName}'
                     COLUMNS(start.name AS start_name,
                     end.name AS end_name,
-                    COUNT(EDGE_ID(e)) AS path_length))`;
+                    COUNT (EDGE_ID(e)) AS path_length))`;
     }
     return '';
 }

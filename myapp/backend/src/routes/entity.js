@@ -715,5 +715,302 @@ module.exports = (repositoryFactory) => {
         }
     });
 
+// 🔧 PATCH /api/entity/person/{wikidataId}/properties - Person Property Update (vereinfacht)
+    router.patch('/person/:wikidataId/properties', async (req, res) => {
+        try {
+            const { wikidataId } = req.params;
+            const { property, value } = req.body;
+            const { db = 'memgraph' } = req.query;
+
+            console.log(`✏️ PERSON UPDATE: ${wikidataId} | ${property} = "${value}" | DB: ${db}`);
+
+            // Validierung
+            if (!property || value === undefined || value === null) {
+                return res.status(400).json({
+                    success: false,
+                    error: 'Property name and value are required'
+                });
+            }
+
+            // Person-spezifische Property-Validierung
+            const validPersonProperties = ['name', 'birth_date', 'death_date', 'gender', 'description'];
+            if (!validPersonProperties.includes(property)) {
+                return res.status(400).json({
+                    success: false,
+                    error: `Invalid person property: ${property}. Valid properties: ${validPersonProperties.join(', ')}`
+                });
+            }
+
+            // Datum-Validierung
+            if ((property === 'birth_date' || property === 'death_date') && value) {
+                const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+                if (!dateRegex.test(value)) {
+                    return res.status(400).json({
+                        success: false,
+                        error: 'Date must be in YYYY-MM-DD format'
+                    });
+                }
+            }
+
+            const repo = repositoryFactory.getRepository('person', db);
+
+            // 1. Person existiert?
+            let existingPerson;
+            try {
+                existingPerson = await repo.findById(wikidataId);
+                if (!existingPerson) {
+                    return res.status(404).json({
+                        success: false,
+                        error: `Person with ID ${wikidataId} not found in ${db}`
+                    });
+                }
+            } catch (findError) {
+                console.error('Error finding person for update:', findError);
+                return res.status(404).json({
+                    success: false,
+                    error: `Person with ID ${wikidataId} not found: ${findError.message}`
+                });
+            }
+
+            // 2. Aktuellen Wert abrufen - FIXED für Oracle Case-Sensitivity
+            let currentValue = null;
+            if (db === 'oracle') {
+                // Oracle: Versuche beide Cases
+                const oracleKey = property.toUpperCase();
+                currentValue = existingPerson[oracleKey] || existingPerson[property];
+
+                console.log(`📝 Oracle property lookup: ${property} -> ${oracleKey}`, {
+                    oracleKey,
+                    value: currentValue,
+                    availableKeys: Object.keys(existingPerson)
+                });
+            } else {
+                currentValue = existingPerson[property] || existingPerson[`e.${property}`];
+            }
+
+            console.log(`📝 Current value for ${property}:`, currentValue);
+            console.log(`📝 New value:`, value);
+
+            // 3. Cross-field Validierung - FIXED für Oracle Case-Sensitivity
+            if (property === 'death_date' && value) {
+                let birthDateValue = null;
+
+                if (db === 'oracle') {
+                    birthDateValue = existingPerson.BIRTH_DATE || existingPerson.birth_date;
+                } else {
+                    birthDateValue = existingPerson.birth_date || existingPerson['e.birth_date'];
+                }
+
+                if (birthDateValue) {
+                    // Formatiere Oracle-Datum falls nötig
+                    if (typeof birthDateValue === 'string' && birthDateValue.includes(' ')) {
+                        birthDateValue = birthDateValue.split(' ')[0];
+                    }
+
+                    const birthDate = new Date(birthDateValue);
+                    const deathDate = new Date(value);
+                    if (deathDate <= birthDate) {
+                        return res.status(400).json({
+                            success: false,
+                            error: 'Death date must be after birth date'
+                        });
+                    }
+                }
+            }
+
+            // 4. Update Query ausführen - COMPLETELY DIFFERENT for Oracle
+            let updateResult;
+
+            if (db === 'memgraph') {
+                // Memgraph Cypher UPDATE (funktioniert)
+                const cypherQuery = `
+                    MATCH (n:person {id: $wikidataId})
+                    SET n.${property} = $newValue
+                    RETURN n
+                `;
+
+                console.log(`🔍 Memgraph PERSON UPDATE:`, cypherQuery);
+
+                updateResult = await repo.execute({
+                    memgraph: cypherQuery
+                }, {
+                    wikidataId,
+                    newValue: value
+                });
+
+            } else if (db === 'oracle') {
+                // 🔧 ORACLE: Use direct SQL UPDATE (PGQL UPDATE doesn't work!)
+                console.log(`🔍 Oracle PERSON UPDATE: Using direct SQL instead of PGQL`);
+
+                try {
+                    const { getOracleConnection } = require('../config/database');
+                    let connection = await getOracleConnection();
+
+                    // 🔧 Map frontend property names to Oracle column names
+                    const oracleColumnMap = {
+                        'name': 'NAME',
+                        'birth_date': 'BIRTH_DATE',
+                        'death_date': 'DEATH_DATE',
+                        'gender': 'GENDER',
+                        'description': 'DESCRIPTION'
+                    };
+
+                    const oracleColumn = oracleColumnMap[property] || property.toUpperCase();
+
+                    // Direct SQL UPDATE
+                    const sqlUpdateQuery = `UPDATE PERSONS SET ${oracleColumn} = :newValue WHERE id = :wikidataId`;
+
+                    console.log(`🔍 Oracle SQL UPDATE:`, sqlUpdateQuery);
+                    console.log(`🔍 Oracle SQL params:`, { newValue: value, wikidataId });
+
+                    const sqlResult = await connection.execute(sqlUpdateQuery, {
+                        newValue: value,
+                        wikidataId: wikidataId
+                    }, { autoCommit: true });
+
+                    await connection.close();
+
+                    console.log(`✅ Oracle SQL UPDATE result:`, sqlResult);
+
+                    if (sqlResult.rowsAffected === 0) {
+                        throw new Error(`No person found with ID ${wikidataId} in Oracle`);
+                    }
+
+                    // Simulate update result for consistency
+                    updateResult = {
+                        success: true,
+                        rowsAffected: sqlResult.rowsAffected,
+                        method: 'oracle_sql_update'
+                    };
+
+                } catch (oracleError) {
+                    console.error(`❌ Oracle SQL UPDATE failed:`, oracleError);
+                    throw new Error(`Oracle SQL UPDATE failed: ${oracleError.message}`);
+                }
+
+            } else {
+                throw new Error(`Unsupported database: ${db}`);
+            }
+
+            console.log(`✅ Person update result:`, updateResult);
+
+            // 5. Aktualisierte Person abrufen
+            let updatedPerson;
+            try {
+                updatedPerson = await repo.findById(wikidataId);
+            } catch (fetchError) {
+                console.warn('Could not fetch updated person:', fetchError);
+                updatedPerson = null;
+            }
+
+            // 6. Response
+            res.json({
+                success: true,
+                message: `Person property '${property}' updated successfully`,
+                data: {
+                    database: db,
+                    updatedNode: {
+                        entityType: 'person',
+                        wikidataId,
+                        name: updatedPerson?.name || updatedPerson?.NAME || updatedPerson?.['e.name'] || 'Unknown'
+                    },
+                    updatedProperty: {
+                        name: property,
+                        oldValue: currentValue,
+                        newValue: value,
+                        changed: currentValue !== value
+                    },
+                    personData: updatedPerson
+                },
+                metadata: {
+                    timestamp: new Date().toISOString(),
+                    entityType: 'person',
+                    wikidataId,
+                    database: db,
+                    operation: 'UPDATE_PERSON_PROPERTY'
+                }
+            });
+
+        } catch (error) {
+            console.error('Person property update error:', error);
+            res.status(500).json({
+                success: false,
+                error: error.message,
+                details: {
+                    operation: 'UPDATE_PERSON_PROPERTY',
+                    wikidataId: req.params.wikidataId,
+                    property: req.body.property,
+                    database: req.query.db || 'memgraph'
+                }
+            });
+        }
+    });
+
+    // 🔧 GET /api/entity/person/{wikidataId}/properties - Person Properties abrufen (vereinfacht)
+    router.get('/person/:wikidataId/properties', async (req, res) => {
+        try {
+            const { wikidataId } = req.params;
+            const { db = 'memgraph' } = req.query;
+
+            console.log(`📋 GET Person Properties: ${wikidataId} | DB: ${db}`);
+
+            const repo = repositoryFactory.getRepository('person', db);
+
+            // Person abrufen
+            const person = await repo.findById(wikidataId);
+
+            if (!person) {
+                return res.status(404).json({
+                    success: false,
+                    error: `Person with ID ${wikidataId} not found in ${db}`
+                });
+            }
+
+            // Person-Properties extrahieren
+            const personProperties = ['name', 'birth_date', 'death_date', 'gender', 'description'];
+            const properties = {};
+
+            personProperties.forEach(prop => {
+                if (db === 'oracle') {
+                    properties[prop] = person[prop] || person[prop.toUpperCase()] || null;
+                } else {
+                    properties[prop] = person[prop] || person[`e.${prop}`] || null;
+                }
+            });
+
+            // Zusätzliche Properties falls vorhanden
+            Object.keys(person).forEach(key => {
+                if (!['id', 'ID', 'VERTEX_ID', 'vertex_id', 'labels', 'all_properties'].includes(key)
+                    && !personProperties.includes(key)
+                    && !key.startsWith('e.')) {
+                    properties[key] = person[key];
+                }
+            });
+
+            res.json({
+                success: true,
+                data: {
+                    entityType: 'person',
+                    wikidataId,
+                    database: db,
+                    properties,
+                    editableProperties: personProperties,
+                    personData: person
+                },
+                metadata: {
+                    timestamp: new Date().toISOString(),
+                    propertyCount: Object.keys(properties).length
+                }
+            });
+
+        } catch (error) {
+            console.error('Get person properties error:', error);
+            res.status(500).json({
+                success: false,
+                error: error.message
+            });
+        }
+    });
+    
     return router;
 };

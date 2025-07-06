@@ -1,8 +1,14 @@
-﻿// src/components/query/EdgeDeleter.js - ENHANCED for multi-database support
+﻿// src/components/query/EdgeDeleter.js - DEUTSCHE VERSION mit LabelTranslator
 import React, { useState, useEffect } from 'react';
 import { Unlink, Search, AlertTriangle, CheckCircle, AlertCircle, RefreshCw, ArrowRight } from 'lucide-react';
 import apiService from '../../services/api';
 import EntityDropdown from './shared/EntityDropdown';
+import {
+    getEntityTypeSimple,
+    getRelationshipTypeLabel,
+    getDatabaseLabel,
+    getPlaceholderText
+} from './shared/LabelTranslator';
 
 const EdgeDeleter = () => {
     const [database, setDatabase] = useState('memgraph');
@@ -32,7 +38,7 @@ const EdgeDeleter = () => {
                 setEdgeConfigs(configs.edgeConfigs || {});
                 setAvailableEdgeTypes(configs.edgeTypes || []);
             } catch (err) {
-                console.error('Failed to load configs:', err);
+                console.error('Fehler beim Laden der Konfigurationen:', err);
             }
         };
         loadConfigs();
@@ -66,7 +72,7 @@ const EdgeDeleter = () => {
     // 🔧 ENHANCED: Entity ID aus gewählter Datenbank extrahieren
     const getEntityIdByName = async (entityType, entityName) => {
         try {
-            console.log(`🔍 Looking up entity: ${entityType}:${entityName} for ${database}`);
+            console.log(`🔍 Suche Entity: ${entityType}:${entityName} für ${database}`);
 
             // Zuerst in der Ziel-Datenbank suchen
             let extractedId = null;
@@ -93,7 +99,7 @@ const EdgeDeleter = () => {
             // Falls nicht in Ziel-DB gefunden, in der anderen DB suchen
             if (!extractedId) {
                 const fallbackDb = database === 'oracle' ? 'memgraph' : 'oracle';
-                console.log(`🔄 Fallback: Searching in ${fallbackDb}...`);
+                console.log(`🔄 Fallback: Suche in ${fallbackDb}...`);
 
                 const fallbackResult = await apiService.searchEntityNames(entityType, entityName, fallbackDb, 10);
 
@@ -114,15 +120,15 @@ const EdgeDeleter = () => {
                     }
 
                     if (extractedId) {
-                        console.log(`⚠️ Warning: Entity found in ${fallbackDb} but target is ${database}`);
+                        console.log(`⚠️ Warnung: Entity in ${fallbackDb} gefunden, aber Ziel ist ${database}`);
                     }
                 }
             }
 
-            console.log(`🔍 Extracted ID for ${entityName}: ${extractedId}`);
+            console.log(`🔍 Extrahierte ID für ${entityName}: ${extractedId}`);
             return extractedId;
         } catch (err) {
-            console.error(`Failed to get entity ID for ${entityName}:`, err);
+            console.error(`Fehler beim Abrufen der Entity ID für ${entityName}:`, err);
             return null;
         }
     };
@@ -138,7 +144,7 @@ const EdgeDeleter = () => {
             const id = await getEntityIdByName(sourceEntityType, entityName);
             if (id) setSourceId(id);
         } catch (err) {
-            console.warn('Could not extract source entity ID:', err);
+            console.warn('Konnte Source Entity ID nicht extrahieren:', err);
         }
     };
 
@@ -153,14 +159,14 @@ const EdgeDeleter = () => {
             const id = await getEntityIdByName(targetEntityType, entityName);
             if (id) setTargetId(id);
         } catch (err) {
-            console.warn('Could not extract target entity ID:', err);
+            console.warn('Konnte Target Entity ID nicht extrahieren:', err);
         }
     };
 
     // Edge für Deletion suchen
     const searchEdgeForDeletion = async () => {
         if (!sourceId || !targetId) {
-            setError('Please select both source and target entities');
+            setError('Bitte wählen Sie sowohl Quell- als auch Ziel-Entity aus');
             return;
         }
 
@@ -174,7 +180,7 @@ const EdgeDeleter = () => {
             if (info.success) {
                 setEdgeInfo(info);
             } else {
-                setError(info.error || `Edge not found in ${database}`);
+                setError(info.error || `Edge in ${database} nicht gefunden`);
             }
         } catch (err) {
             setError(err.message);
@@ -186,7 +192,7 @@ const EdgeDeleter = () => {
     // Edge löschen
     const deleteEdge = async () => {
         if (!edgeInfo) {
-            setError('Please search for an edge first');
+            setError('Bitte suchen Sie zuerst nach einer Edge');
             return;
         }
 
@@ -229,7 +235,7 @@ const EdgeDeleter = () => {
 
             {/* Database Selection */}
             <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-2">Target Database</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Ziel-Datenbank</label>
                 <select
                     value={database}
                     onChange={(e) => setDatabase(e.target.value)}
@@ -239,13 +245,13 @@ const EdgeDeleter = () => {
                     <option value="oracle">🔴 Oracle (PGQL)</option>
                 </select>
                 <p className="text-xs text-gray-500 mt-1">
-                    Dropdown shows entities from both databases, but deletion targets only the selected database.
+                    Dropdown zeigt Entities aus beiden Datenbanken, aber Löschung erfolgt nur in der gewählten Datenbank.
                 </p>
             </div>
 
             {/* Relationship Type Selection */}
             <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-2">Relationship Type</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Beziehungstyp</label>
                 <select
                     value={relationshipType}
                     onChange={(e) => setRelationshipType(e.target.value)}
@@ -253,9 +259,9 @@ const EdgeDeleter = () => {
                 >
                     {availableEdgeTypes.map(edgeType => (
                         <option key={edgeType} value={edgeType}>
-                            {edgeType}
+                            {getRelationshipTypeLabel(edgeType)}
                             {edgeConfigs[edgeType] && (
-                                ` (${edgeConfigs[edgeType].source_type} → ${edgeConfigs[edgeType].target_type})`
+                                ` (${getEntityTypeSimple(edgeConfigs[edgeType].source_type)} → ${getEntityTypeSimple(edgeConfigs[edgeType].target_type)})`
                             )}
                         </option>
                     ))}
@@ -263,24 +269,24 @@ const EdgeDeleter = () => {
 
                 {currentEdgeConfig.source_type && (
                     <p className="text-sm text-gray-500 mt-1">
-                        🔗 Removes: <strong>{currentEdgeConfig.source_type}</strong> → <strong>{currentEdgeConfig.target_type}</strong>
+                        🔗 Entfernt: <strong>{getEntityTypeSimple(currentEdgeConfig.source_type)}</strong> → <strong>{getEntityTypeSimple(currentEdgeConfig.target_type)}</strong>
                     </p>
                 )}
             </div>
 
-            {/* Source and Target Entity Selection - ENHANCED */}
+            {/* Source and Target Entity Selection */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
                 {/* Source Entity */}
                 <div className="space-y-4">
                     <h4 className="font-medium text-gray-900 flex items-center gap-2">
-                        📤 Source Entity
+                        📤 Quell-Entity
                     </h4>
 
                     <div className="space-y-2">
-                        <label className="block text-sm font-medium text-gray-700">Entity Type</label>
+                        <label className="block text-sm font-medium text-gray-700">Entity-Typ</label>
                         <input
                             type="text"
-                            value={sourceEntityType}
+                            value={getEntityTypeSimple(sourceEntityType)}
                             disabled
                             className="w-full p-3 border rounded-lg bg-gray-100 text-gray-600"
                         />
@@ -288,21 +294,21 @@ const EdgeDeleter = () => {
 
                     <div className="space-y-2">
                         <label className="block text-sm font-medium text-gray-700">
-                            Entity Name
-                            <span className="text-sm text-gray-500 ml-1">(from both databases)</span>
+                            Entity-Name
+                            <span className="text-sm text-gray-500 ml-1">(aus beiden Datenbanken)</span>
                         </label>
                         <EntityDropdown
                             value={sourceEntityName}
                             onChange={handleSourceEntityChange}
                             entityType={sourceEntityType}
-                            database="both" // 🔧 FIXED: Immer beide DBs anzeigen
-                            placeholder={`Select ${sourceEntityType}...`}
+                            database="both"
+                            placeholder={getPlaceholderText(sourceEntityType)}
                             showDatabaseIndicator={true}
                         />
                     </div>
 
                     <div className="space-y-2">
-                        <label className="block text-sm font-medium text-gray-700">Wikidata ID</label>
+                        <label className="block text-sm font-medium text-gray-700">Wikidata-ID</label>
                         <input
                             type="text"
                             value={sourceId}
@@ -317,21 +323,21 @@ const EdgeDeleter = () => {
                 <div className="flex items-center justify-center lg:pt-16">
                     <div className="flex items-center gap-2 text-red-600">
                         <ArrowRight size={24} />
-                        <span className="text-sm font-medium">{relationshipType}</span>
+                        <span className="text-sm font-medium">{getRelationshipTypeLabel(relationshipType)}</span>
                     </div>
                 </div>
 
                 {/* Target Entity */}
                 <div className="space-y-4">
                     <h4 className="font-medium text-gray-900 flex items-center gap-2">
-                        📥 Target Entity
+                        📥 Ziel-Entity
                     </h4>
 
                     <div className="space-y-2">
-                        <label className="block text-sm font-medium text-gray-700">Entity Type</label>
+                        <label className="block text-sm font-medium text-gray-700">Entity-Typ</label>
                         <input
                             type="text"
-                            value={targetEntityType}
+                            value={getEntityTypeSimple(targetEntityType)}
                             disabled
                             className="w-full p-3 border rounded-lg bg-gray-100 text-gray-600"
                         />
@@ -339,21 +345,21 @@ const EdgeDeleter = () => {
 
                     <div className="space-y-2">
                         <label className="block text-sm font-medium text-gray-700">
-                            Entity Name
-                            <span className="text-sm text-gray-500 ml-1">(from both databases)</span>
+                            Entity-Name
+                            <span className="text-sm text-gray-500 ml-1">(aus beiden Datenbanken)</span>
                         </label>
                         <EntityDropdown
                             value={targetEntityName}
                             onChange={handleTargetEntityChange}
                             entityType={targetEntityType}
-                            database="both" // 🔧 FIXED: Immer beide DBs anzeigen
-                            placeholder={`Select ${targetEntityType}...`}
+                            database="both"
+                            placeholder={getPlaceholderText(targetEntityType)}
                             showDatabaseIndicator={true}
                         />
                     </div>
 
                     <div className="space-y-2">
-                        <label className="block text-sm font-medium text-gray-700">Wikidata ID</label>
+                        <label className="block text-sm font-medium text-gray-700">Wikidata-ID</label>
                         <input
                             type="text"
                             value={targetId}
@@ -368,10 +374,10 @@ const EdgeDeleter = () => {
             {/* Database Info */}
             <div className="mb-6 p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm">
                 <div className="flex items-center gap-2 text-blue-800">
-                    <span>🔵 = Memgraph, 🔴 = Oracle, 🔵🔴 = Both databases</span>
+                    <span>🔵 = Memgraph, 🔴 = Oracle, 🔵🔴 = Beide Datenbanken</span>
                 </div>
                 <p className="text-blue-700 mt-1">
-                    Edge will be deleted from <strong>{database}</strong> only, even if entities exist in both databases.
+                    Edge wird nur aus <strong>{database}</strong> gelöscht, auch wenn Entities in beiden Datenbanken existieren.
                 </p>
             </div>
 
@@ -385,12 +391,12 @@ const EdgeDeleter = () => {
                     {searching ? (
                         <>
                             <RefreshCw size={16} className="animate-spin" />
-                            Searching in {database}...
+                            Suche in {database}...
                         </>
                     ) : (
                         <>
                             <Search size={16} />
-                            Search Edge in {database}
+                            Edge in {database} suchen
                         </>
                     )}
                 </button>
@@ -401,28 +407,28 @@ const EdgeDeleter = () => {
                 <div className="mb-6 p-4 border rounded-lg bg-gray-50">
                     <h4 className="font-medium text-gray-900 mb-3 flex items-center gap-2">
                         <Search size={16} />
-                        Edge found in {database}
+                        Edge in {database} gefunden
                     </h4>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                         <div>
-                            <strong>Relationship:</strong> {edgeInfo.edgeInfo.relationshipType}
+                            <strong>Beziehung:</strong> {getRelationshipTypeLabel(edgeInfo.edgeInfo.relationshipType)}
                         </div>
                         <div>
-                            <strong>Target Database:</strong>
+                            <strong>Ziel-Datenbank:</strong>
                             <span className={`ml-2 px-2 py-1 text-xs rounded ${
                                 database === 'memgraph'
                                     ? 'bg-blue-100 text-blue-800'
                                     : 'bg-red-100 text-red-800'
                             }`}>
-                                {database === 'memgraph' ? '🔵 Memgraph' : '🔴 Oracle'}
+                                {getDatabaseLabel(database)}
                             </span>
                         </div>
                         <div>
-                            <strong>Source:</strong> {edgeInfo.edgeInfo.sourceEntity?.name || sourceId} ({edgeInfo.edgeInfo.sourceType})
+                            <strong>Quelle:</strong> {edgeInfo.edgeInfo.sourceEntity?.name || sourceId} ({getEntityTypeSimple(edgeInfo.edgeInfo.sourceType)})
                         </div>
                         <div>
-                            <strong>Target:</strong> {edgeInfo.edgeInfo.targetEntity?.name || targetId} ({edgeInfo.edgeInfo.targetType})
+                            <strong>Ziel:</strong> {edgeInfo.edgeInfo.targetEntity?.name || targetId} ({getEntityTypeSimple(edgeInfo.edgeInfo.targetType)})
                         </div>
                     </div>
 
@@ -431,7 +437,7 @@ const EdgeDeleter = () => {
                         <AlertTriangle size={16} className="text-yellow-600 mt-0.5" />
                         <div className="text-sm text-yellow-800">
                             <p>{edgeInfo.deletionWarning}</p>
-                            <p className="mt-1">This edge will be deleted from <strong>{database}</strong> only.</p>
+                            <p className="mt-1">Diese Edge wird nur aus <strong>{database}</strong> gelöscht.</p>
                         </div>
                     </div>
 
@@ -439,7 +445,7 @@ const EdgeDeleter = () => {
                     <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
                         {edgeInfo.edgeInfo.sourceEntity && (
                             <div className="p-3 bg-white border rounded text-xs">
-                                <strong>Source Entity:</strong>
+                                <strong>Quell-Entity:</strong>
                                 <pre className="mt-1 overflow-x-auto text-gray-600">
                                     {JSON.stringify(edgeInfo.edgeInfo.sourceEntity, null, 2)}
                                 </pre>
@@ -448,7 +454,7 @@ const EdgeDeleter = () => {
 
                         {edgeInfo.edgeInfo.targetEntity && (
                             <div className="p-3 bg-white border rounded text-xs">
-                                <strong>Target Entity:</strong>
+                                <strong>Ziel-Entity:</strong>
                                 <pre className="mt-1 overflow-x-auto text-gray-600">
                                     {JSON.stringify(edgeInfo.edgeInfo.targetEntity, null, 2)}
                                 </pre>
@@ -468,12 +474,12 @@ const EdgeDeleter = () => {
                     {deleting ? (
                         <>
                             <RefreshCw size={16} className="animate-spin" />
-                            Deleting from {database}...
+                            Lösche aus {database}...
                         </>
                     ) : (
                         <>
                             <Unlink size={16} />
-                            Delete Edge from {database}
+                            Edge aus {database} löschen
                         </>
                     )}
                 </button>
@@ -482,7 +488,7 @@ const EdgeDeleter = () => {
                     onClick={resetForm}
                     className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
                 >
-                    Reset Form
+                    Formular zurücksetzen
                 </button>
             </div>
 
@@ -491,35 +497,35 @@ const EdgeDeleter = () => {
                 <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
                     <div className="flex items-center gap-2 mb-3">
                         <CheckCircle className="text-green-600" size={20} />
-                        <h4 className="font-medium text-green-900">✅ Edge deleted successfully from {database}!</h4>
+                        <h4 className="font-medium text-green-900">✅ Edge erfolgreich aus {database} gelöscht!</h4>
                     </div>
 
                     <div className="space-y-2 text-sm">
                         <div className="grid grid-cols-2 gap-4">
                             <div>
-                                <strong>Relationship:</strong> {result.data?.deletedEdge?.relationshipType}
+                                <strong>Beziehung:</strong> {getRelationshipTypeLabel(result.data?.deletedEdge?.relationshipType)}
                             </div>
                             <div>
-                                <strong>Target Database:</strong>
+                                <strong>Ziel-Datenbank:</strong>
                                 <span className={`ml-2 px-2 py-1 text-xs rounded ${
                                     result.data?.database === 'memgraph'
                                         ? 'bg-blue-100 text-blue-800'
                                         : 'bg-red-100 text-red-800'
                                 }`}>
-                                    {result.data?.database === 'memgraph' ? '🔵 Memgraph' : '🔴 Oracle'}
+                                    {getDatabaseLabel(result.data?.database)}
                                 </span>
                             </div>
                             <div>
-                                <strong>Source ID:</strong> {result.data?.deletedEdge?.sourceId}
+                                <strong>Quell-ID:</strong> {result.data?.deletedEdge?.sourceId}
                             </div>
                             <div>
-                                <strong>Target ID:</strong> {result.data?.deletedEdge?.targetId}
+                                <strong>Ziel-ID:</strong> {result.data?.deletedEdge?.targetId}
                             </div>
                         </div>
 
                         {result.data?.deletedEdge && (
                             <div className="mt-3 p-3 bg-white border rounded text-xs">
-                                <strong>Deleted Edge:</strong>
+                                <strong>Gelöschte Edge:</strong>
                                 <pre className="mt-1 overflow-x-auto">
                                     {JSON.stringify(result.data.deletedEdge, null, 2)}
                                 </pre>
@@ -534,7 +540,7 @@ const EdgeDeleter = () => {
                 <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
                     <div className="flex items-center gap-2 mb-2">
                         <AlertCircle className="text-red-600" size={20} />
-                        <h4 className="font-medium text-red-900">❌ Operation failed</h4>
+                        <h4 className="font-medium text-red-900">❌ Operation fehlgeschlagen</h4>
                     </div>
                     <p className="text-red-700 text-sm">{error}</p>
                 </div>
@@ -544,11 +550,11 @@ const EdgeDeleter = () => {
             <div className="mt-6 p-4 bg-red-50 border border-red-200 rounded-lg text-sm">
                 <h5 className="font-medium text-red-900 mb-2">⚠️ Wichtige Hinweise:</h5>
                 <ul className="text-red-800 space-y-1">
-                    <li>• <strong>Multi-Database View:</strong> Dropdown zeigt Entities aus beiden Datenbanken</li>
-                    <li>• <strong>Target Database:</strong> Edge wird nur in der gewählten Ziel-Datenbank gelöscht</li>
+                    <li>• <strong>Multi-Datenbank-Ansicht:</strong> Dropdown zeigt Entities aus beiden Datenbanken</li>
+                    <li>• <strong>Ziel-Datenbank:</strong> Edge wird nur in der gewählten Ziel-Datenbank gelöscht</li>
                     <li>• <strong>Einzelbeziehung:</strong> Nur die spezifische Beziehung wird gelöscht, nicht die Entities</li>
                     <li>• <strong>Unwiderruflich:</strong> Gelöschte Edges können nicht wiederhergestellt werden</li>
-                    <li>• <strong>Oracle:</strong> Löscht aus der entsprechenden Edge Table</li>
+                    <li>• <strong>Oracle:</strong> Löscht aus der entsprechenden Edge-Tabelle</li>
                     <li>• <strong>Memgraph:</strong> Nutzt DELETE für gezielte Edge-Entfernung</li>
                 </ul>
             </div>
