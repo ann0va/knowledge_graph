@@ -1,10 +1,15 @@
 ﻿// src/components/query/RelationshipCounter.js - COMPLETE CLEAN VERSION
 import React, { useState } from 'react';
-import { BarChart3, TrendingUp, Database } from 'lucide-react';
+import { TrendingUp} from 'lucide-react';
 import EntityDropdown from './shared/EntityDropdown';
 import QueryResults from './shared/QueryResults';
 import { QueryInterface } from './shared/QueryInterface';
-import apiService from "../../services/api";
+
+import {
+    getEntityTypeLabel, 
+    getEntityTypeSimple,
+    getRelationshipTypeLabel,
+} from './shared/LabelTranslator';
 
 const RelationshipCounter = () => {
     const [selectedEntity, setSelectedEntity] = useState('');
@@ -17,6 +22,8 @@ const RelationshipCounter = () => {
     const [validationError, setValidationError] = useState('');
 
     const queryInterface = new QueryInterface();
+    
+    
 
     const entityTypes = [
         { id: 'person', label: 'Person' },
@@ -77,21 +84,7 @@ const RelationshipCounter = () => {
         ]
     };
 
-    // 🔧 GERMAN LABELS: Entity Type Labels
-    const getEntityTypeLabel = (type) => {
-        const labels = {
-            'person': '👤 Person',
-            'place': '📍 Ort',
-            'work': '📚 Werk',
-            'award': '🏆 Auszeichnung',
-            'field': '🔬 Fachbereich',
-            'occupation': '💼 Beruf',
-            'workplace': '🏢 Arbeitsplatz'
-        };
-        return labels[type] || type;
-    };
-
-    const validateQuery = () => {
+       const validateQuery = () => {
         const entityError = queryInterface.validateNotEmpty(selectedEntity, 'Entity');
         if (entityError) {
             setValidationError(entityError);
@@ -374,10 +367,10 @@ const RelationshipCounter = () => {
             all: 'alle Beziehungen',
             outgoing: 'ausgehende Beziehungen',
             incoming: 'eingehende Beziehungen',
-            specific: `Beziehungen vom Typ "${specificRelationshipType}"`
+            specific: `Beziehungen vom Typ "${getRelationshipTypeLabel(specificRelationshipType)}"`
         };
 
-        return `Zähle ${modeLabels[countMode]} von "${selectedEntity}" (${selectedEntityType})`;
+        return `Zähle ${modeLabels[countMode]} von "${selectedEntity}" (${getEntityTypeSimple(selectedEntityType)})`;
     };
 
     return (

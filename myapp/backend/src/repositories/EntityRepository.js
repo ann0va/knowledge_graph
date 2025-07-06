@@ -1,4 +1,4 @@
-﻿// src/repositories/EntityRepository.js - ENHANCED with CREATE methods
+﻿// src/repositories/EntityRepository.js
 const BaseRepository = require('./BaseRepository');
 
 // 🔧 UPDATED: Entity-Konfiguration mit CREATE-Support
@@ -1092,6 +1092,9 @@ class EntityRepository extends BaseRepository {
             return await this.findAll(limit);
         }
 
+        // 🔧 FIX: Escape single quotes for Oracle
+        const escapedSearchTerm = searchTerm.replace(/'/g, "''");
+
         const oracleLabel = this.config.oracle_label;
         const memgraphLabel = this.config.memgraph_label;
         const oracleSafeFields = this.config.oracle_safe_fields || ['name'];
@@ -1100,17 +1103,17 @@ class EntityRepository extends BaseRepository {
 
         const queries = {
             oracle: `SELECT id(e) as vertex_id,
-                            ${oracleSafeFields.map(field => `e.${field}`).join(',\n                            ')}
-                     FROM MATCH (e:${oracleLabel}) ON ${this.defaultGraph}
-                     WHERE java_regexp_like(e.${searchField}, '.*${searchTerm}.*', 'i')
-                         LIMIT ${limit}`,
+                        ${oracleSafeFields.map(field => `e.${field}`).join(',\n                        ')}
+                 FROM MATCH (e:${oracleLabel}) ON ${this.defaultGraph}
+                 WHERE java_regexp_like(e.${searchField}, '.*${escapedSearchTerm}.*', 'i')
+                     LIMIT ${limit}`,
             memgraph: `MATCH (e:${memgraphLabel})
-                      WHERE toUpper(e.${searchField}) CONTAINS toUpper($searchTerm)
-                      RETURN id(e) as vertex_id,
-                             labels(e) as labels,
-                             ${memgraphFields.map(field => `e.${field}`).join(',\n                             ')},
-                             properties(e) as all_properties
-                      LIMIT $limit`
+                  WHERE toUpper(e.${searchField}) CONTAINS toUpper($searchTerm)
+                  RETURN id(e) as vertex_id,
+                         labels(e) as labels,
+                         ${memgraphFields.map(field => `e.${field}`).join(',\n                         ')},
+                         properties(e) as all_properties
+                  LIMIT $limit`
         };
 
         return await this.execute(queries, { searchTerm, limit: parseInt(limit) });
@@ -1193,6 +1196,32 @@ class EntityRepository extends BaseRepository {
                       source.id as source_entity_id,
                       source.name as source_name,
                       properties(source) as source_properties`
+        };
+
+        return await this.execute(queries, { wikidataId });
+    }
+
+    // 🆕 NEW METHOD: Find all persons connected to any entity
+    async findConnectedPersons(wikidataId) {
+        console.log(`🔍 Finding all persons connected to ${this.entityType}:${wikidataId}`);
+
+        const oracleTableName = this.getOracleTableName();
+        const expectedVertexId = `${oracleTableName}(${wikidataId})`;
+        const memgraphLabel = this.config.memgraph_label;
+
+        const queries = {
+            oracle: `SELECT label(r) as relationship_type,
+                        id(source) as source_vertex_id,
+                        source.name as source_name
+                 FROM MATCH (source:PERSON)-[r]->(target:${this.config.oracle_label}) ON ${this.defaultGraph}
+                 WHERE id(target) = '${expectedVertexId}'`,
+            memgraph: `MATCH (source:person)-[r]->(target:${memgraphLabel} {id: $wikidataId})
+                   RETURN type(r) as relationship_type,
+                          id(source) as source_vertex_id,
+                          labels(source) as source_labels,
+                          source.id as source_entity_id,
+                          source.name as source_name,
+                          properties(source) as source_properties`
         };
 
         return await this.execute(queries, { wikidataId });

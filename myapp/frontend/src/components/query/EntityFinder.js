@@ -1,12 +1,13 @@
-﻿// src/components/query/EntityFinder.js - COMPLETE VERSION with ALL relationships
+﻿// src/components/query/EntityFinder.js - COMPLETE VERSION with conditional logic
 
 import React, {useState} from 'react';
 import {User, Search} from 'lucide-react';
 import EntityDropdown from './shared/EntityDropdown';
 import QueryResults from './shared/QueryResults';
 import {QueryInterface} from './shared/QueryInterface';
-// import GraphResultsVisualizer from '../visualization/GraphResultsVisualizer';
-
+import {
+    getEntityTypeLabel,
+} from './shared/LabelTranslator';
 
 const EntityFinder = () => {
     const [selectedEntity, setSelectedEntity] = useState('');
@@ -28,22 +29,9 @@ const EntityFinder = () => {
         {id: 'workplace', label: 'Arbeitsplatz'},
         {id: 'occupation', label: 'Beruf'}
     ];
+    
 
-    // 🔧 GERMAN LABELS: Entity Type Labels
-    const getEntityTypeLabel = (type) => {
-        const labels = {
-            'person': '👤 Person',
-            'place': '📍 Ort',
-            'work': '📚 Werk',
-            'award': '🏆 Auszeichnung',
-            'field': '🔬 Fachbereich',
-            'occupation': '💼 Beruf',
-            'workplace': '🏢 Arbeitsplatz'
-        };
-        return labels[type] || type;
-    };
-
-    // ✅ COMPLETE RELATIONSHIPS - alle 15+ Relationships wie im alten QueryBuilder
+    // ✅ COMPLETE RELATIONSHIPS - nur für Personen relevant
     const relationships = {
         person: [
             {id: 'WORKS_IN', label: 'arbeitet in Bereich', target: 'field'},
@@ -62,29 +50,11 @@ const EntityFinder = () => {
             {id: 'FATHER_OF', label: 'ist Vater von', target: 'person'},
             {id: 'MOTHER_OF', label: 'ist Mutter von', target: 'person'},
             {id: 'NATIONAL_OF', label: 'ist Staatsangehöriger von', target: 'place'}
-        ],
-        award: [
-            {id: 'AWARDED_TO', label: 'wurde verliehen an', target: 'person'},
-            {id: 'IN_FIELD', label: 'ist im Bereich', target: 'field'}
-        ],
-        field: [
-            {id: 'WORKED_BY', label: 'wird bearbeitet von', target: 'person'}
-        ],
-        place: [
-            {id: 'BIRTH_PLACE_OF', label: 'ist Geburtsort von', target: 'person'},
-            {id: 'DEATH_PLACE_OF', label: 'ist Sterbeort von', target: 'person'},
-            {id: 'WORKPLACE_IN', label: 'hat Arbeitsplätze', target: 'workplace'}
-        ],
-        work: [
-            {id: 'CREATED_BY', label: 'wurde erschaffen von', target: 'person'}
-        ],
-        workplace: [
-            {id: 'EMPLOYED', label: 'beschäftigte', target: 'person'}
-        ],
-        occupation: [
-            {id: 'HELD_BY', label: 'wird ausgeübt von', target: 'person'}
         ]
     };
+
+    // 🆕 NEW: Check if current entity type is person
+    const isPersonEntity = selectedEntityType === 'person';
 
     const validateQuery = () => {
         const entityError = queryInterface.validateNotEmpty(selectedEntity, 'Entity');
@@ -93,10 +63,13 @@ const EntityFinder = () => {
             return false;
         }
 
-        const relationshipError = queryInterface.validateNotEmpty(relationshipType, 'Beziehungstyp');
-        if (relationshipError) {
-            setValidationError(relationshipError);
-            return false;
+        // 🆕 NEW: Only validate relationship type for person entities
+        if (isPersonEntity) {
+            const relationshipError = queryInterface.validateNotEmpty(relationshipType, 'Beziehungstyp');
+            if (relationshipError) {
+                setValidationError(relationshipError);
+                return false;
+            }
         }
 
         setValidationError('');
@@ -110,21 +83,67 @@ const EntityFinder = () => {
         setQueryError(null);
         setQueryResults(null);
 
-        const queryData = {
-            queryType: 'find_related',
-            entityType: selectedEntityType,
-            entityName: selectedEntity,
-            relationshipType,
-            targetEntityType: relationships[selectedEntityType]?.find(r => r.id === relationshipType)?.target,
-            database: 'both'
-        };
+        let queryData;
 
-        const result = await queryInterface.executeQuery(queryData);
+        if (isPersonEntity) {
+            // 🆕 NEW: For person entities, use the existing logic
+            queryData = {
+                queryType: 'find_related',
+                entityType: selectedEntityType,
+                entityName: selectedEntity,
+                relationshipType,
+                targetEntityType: relationships[selectedEntityType]?.find(r => r.id === relationshipType)?.target,
+                database: 'both'
+            };
 
-        if (result.success) {
-            setQueryResults(result.data);
+            const result = await queryInterface.executeQuery(queryData);
+
+            if (result.success) {
+                setQueryResults(result.data);
+            } else {
+                setQueryError(result.error);
+            }
         } else {
-            setQueryError(result.error);
+            // 🆕 NEW: For non-person entities, use the new findConnectedPersons method
+            queryData = {
+                queryType: 'find_connected_persons', // New backend method
+                entityType: selectedEntityType,
+                entityName: selectedEntity,
+                database: 'both'
+            };
+
+            const result = await queryInterface.executeQuery(queryData);
+
+            if (result.success) {
+                // Transform data for consistent display (source_* to target_*)
+                let transformedData = result.data;
+
+                if (result.data && result.data.results) {
+                    ['oracle', 'memgraph'].forEach(db => {
+                        if (transformedData.results[db] && transformedData.results[db].relationships) {
+                            console.log(`🔧 Transforming ${db} connected persons:`, transformedData.results[db].relationships);
+
+                            transformedData.results[db].relationships = transformedData.results[db].relationships.map(rel => ({
+                                target_name: rel.source_name || rel.SOURCE_NAME,
+                                target_entity_id: rel.source_entity_id || rel.SOURCE_ENTITY_ID,
+                                target_vertex_id: rel.source_vertex_id || rel.SOURCE_VERTEX_ID,
+                                target_labels: rel.source_labels || ['person'],
+                                target_properties: rel.source_properties,
+                                relationship_type: rel.relationship_type || rel.RELATIONSHIP_TYPE,
+                                _from_connected_persons_method: true
+                            })).filter(rel => rel.target_name);
+
+                            transformedData.results[db].count = transformedData.results[db].relationships.length;
+
+                            console.log(`✅ Transformed ${db} to ${transformedData.results[db].relationships.length} connected persons`);
+                        }
+                    });
+                }
+
+                setQueryResults(transformedData);
+            } else {
+                setQueryError(result.error);
+            }
         }
 
         setQueryLoading(false);
@@ -135,7 +154,8 @@ const EntityFinder = () => {
             <div className="bg-white rounded-lg border p-6">
                 <h3 className="text-lg font-semibold mb-4">🔍 Verwandte Entitäten finden</h3>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {/* 🆕 NEW: Dynamic grid - 3 columns for person, 2 for others */}
+                <div className={`grid grid-cols-1 gap-6 ${isPersonEntity ? 'md:grid-cols-3' : 'md:grid-cols-2'}`}>
                     {/* Entity Type */}
                     <div>
                         <label className="block text-sm font-medium mb-2">Entity-Typ</label>
@@ -167,22 +187,36 @@ const EntityFinder = () => {
                         />
                     </div>
 
-                    {/* Relationship Type */}
-                    <div>
-                        <label className="block text-sm font-medium mb-2">Beziehungstyp</label>
-                        <select
-                            value={relationshipType}
-                            onChange={(e) => setRelationshipType(e.target.value)}
-                            className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500"
-                            disabled={!selectedEntityType}
-                        >
-                            <option value="">Beziehung wählen...</option>
-                            {relationships[selectedEntityType]?.map(rel => (
-                                <option key={rel.id} value={rel.id}>{rel.label}</option>
-                            ))}
-                        </select>
-                    </div>
+                    {/* 🆕 NEW: Relationship Type - only shown for person entities */}
+                    {isPersonEntity && (
+                        <div>
+                            <label className="block text-sm font-medium mb-2">Beziehungstyp</label>
+                            <select
+                                value={relationshipType}
+                                onChange={(e) => setRelationshipType(e.target.value)}
+                                className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                                disabled={!selectedEntityType}
+                            >
+                                <option value="">Beziehung wählen...</option>
+                                {relationships[selectedEntityType]?.map(rel => (
+                                    <option key={rel.id} value={rel.id}>{rel.label}</option>
+                                ))}
+                            </select>
+                        </div>
+                    )}
                 </div>
+
+                {/* 🆕 NEW: Info text for non-person entities */}
+                {!isPersonEntity && (
+                    <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                        <div className="flex items-center">
+                            <div className="text-blue-600 mr-2">ℹ️</div>
+                            <div className="text-blue-800 text-sm">
+                                Für <strong>{getEntityTypeLabel(selectedEntityType)}</strong> werden automatisch verwandte Personen gesucht.
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 {/* Validation Error */}
                 {validationError && (
@@ -214,7 +248,7 @@ const EntityFinder = () => {
                         ) : (
                             <>
                                 <Search size={16}/>
-                                Verwandte Entitäten finden
+                                {isPersonEntity ? 'Verwandte Entitäten finden' : 'Verwandte Personen finden'}
                             </>
                         )}
                     </button>
@@ -228,15 +262,15 @@ const EntityFinder = () => {
                 queryType="find_related"
             />
 
-        {/*    /!* Debug - temporär hinzufügen *!/*/}
-        {/*    {queryResults && (*/}
-        {/*        <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded">*/}
-        {/*            <h4 className="font-medium mb-2">🐛 Debug - QueryResults Structure:</h4>*/}
-        {/*            <pre className="text-xs overflow-x-auto bg-white p-2 rounded">*/}
-        {/*    {JSON.stringify(queryResults, null, 2)}*/}
-        {/*</pre>*/}
-        {/*        </div>*/}
-        {/*    )}*/}
+            {/*    /!* Debug - temporär hinzufügen *!/*/}
+            {/*    {queryResults && (*/}
+            {/*        <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded">*/}
+            {/*            <h4 className="font-medium mb-2">🐛 Debug - QueryResults Structure:</h4>*/}
+            {/*            <pre className="text-xs overflow-x-auto bg-white p-2 rounded">*/}
+            {/*    {JSON.stringify(queryResults, null, 2)}*/}
+            {/*</pre>*/}
+            {/*        </div>*/}
+            {/*    )}*/}
 
             {/*/!* Graph Visualization - FIXED *!/*/}
             {/*{queryResults && (*/}

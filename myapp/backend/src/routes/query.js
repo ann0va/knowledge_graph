@@ -403,6 +403,54 @@ async function executeStructuredQuery(database, queryType, entityType, entityNam
         };
     }
 
+    // In executeStructuredQuery function, nach find_incoming:
+    if (queryType === 'find_connected_persons') {
+        // 1. Entity finden
+        const entityRepo = repositoryFactory.getRepository(entityType, database);
+        const entities = await entityRepo.searchByName(entityName, 5);
+
+        if (!entities || entities.length === 0) {
+            throw new Error(`Entity "${entityName}" not found in ${database}`);
+        }
+
+        const entity = entities[0];
+        let wikidataId;
+
+        // Wikidata ID extrahieren (wie bei anderen Query-Types)
+        if (database === 'oracle') {
+            const vertexId = entity.vertex_id || entity.VERTEX_ID;
+            if (vertexId) {
+                const match = vertexId.match(/\(([^)]+)\)/);
+                wikidataId = match ? match[1] : null;
+            }
+            if (!wikidataId) {
+                wikidataId = entity.id || entity.ID;
+            }
+        } else {
+            wikidataId = entity['e.id'] || entity.id;
+        }
+
+        if (!wikidataId) {
+            throw new Error(`Could not extract Wikidata ID for "${entityName}" in ${database}`);
+        }
+
+        console.log(`📍 Found entity: ${entityName} → ${wikidataId} in ${database}`);
+
+        // 2. Connected persons finden
+        const connectedPersons = await entityRepo.findConnectedPersons(wikidataId);
+
+        return {
+            sourceEntity: entity,
+            relationships: connectedPersons,
+            count: connectedPersons.length,
+            queryInfo: {
+                wikidataId,
+                method: 'find_connected_persons',
+                direction: 'incoming_persons_only'
+            }
+        };
+    }
+
     // Weitere Query-Typen hier implementieren...
     throw new Error(`Query type "${queryType}" not implemented yet`);
 }
@@ -458,7 +506,7 @@ async function findShortestPathOracle(startId, targetId, startEntityType, target
                 AND end.name = '${targetEntityName}'
                 COLUMNS(start.name AS start_name,
                 end.name AS end_name,
-                COUNT(EDGE_ID(e)) AS path_length))
+                COUNT (EDGE_ID(e)) AS path_length))
         `;
 
         console.log(`🔍 Oracle PGQL query:`, shortestPathQuery);
@@ -490,7 +538,8 @@ async function findShortestPathOracle(startId, targetId, startEntityType, target
                 ON ALL_GRAPH
                 WHERE
                 start.name = '${startEntityName}' AND
-                end.name = '${targetEntityName}'
+                end
+                .name = '${targetEntityName}'
             `;
 
             console.log(`🔍 Oracle fallback query:`, fallbackQuery);
@@ -561,11 +610,13 @@ async function findShortestPathOracle(startId, targetId, startEntityType, target
                 WHERE
                 start.name = '${startEntityName}'
                   AND
-                end.name = '${targetEntityName}'
+                end
+                .name = '${targetEntityName}'
                   AND start IS LABELED
                 ${getOracleLabelFromEntityType(startEntityType)}
                 AND
-                end IS LABELED
+                end
+                IS LABELED
                 ${getOracleLabelFromEntityType(targetEntityType)}
                 FETCH
                 FIRST
@@ -869,9 +920,9 @@ async function executePathFindingQuery(queryData, oracleRepo, memgraphRepo) {
 // 🔧 PATCH /api/entity/{entityType}/{wikidataId}/properties - Node Property Update
 router.patch('/entity/:entityType/:wikidataId/properties', async (req, res) => {
     try {
-        const { entityType, wikidataId } = req.params;
-        const { property, value } = req.body;
-        const { db = 'memgraph' } = req.query;
+        const {entityType, wikidataId} = req.params;
+        const {property, value} = req.body;
+        const {db = 'memgraph'} = req.query;
 
         console.log(`✏️ UPDATE Request: ${entityType}:${wikidataId} | ${property} = "${value}" | DB: ${db}`);
 
@@ -944,10 +995,12 @@ router.patch('/entity/:entityType/:wikidataId/properties', async (req, res) => {
         } else if (db === 'oracle') {
             // Oracle PGQL UPDATE
             const pgqlQuery = `
-                    UPDATE n SET (${property} = ?)
-                    FROM MATCH (n IS ${entityType.toUpperCase()}) ON ALL_GRAPH
-                    WHERE n.id = ?
-                `;
+                UPDATE n
+                SET (${property} = ?)
+                FROM MATCH (n IS ${entityType.toUpperCase()})
+                ON ALL_GRAPH
+                WHERE n.id = ?
+            `;
 
             console.log(`🔍 Oracle UPDATE query:`, pgqlQuery);
 
@@ -990,7 +1043,11 @@ router.patch('/entity/:entityType/:wikidataId/properties', async (req, res) => {
                 nodeData: updatedNode,
                 updateQuery: db === 'memgraph' ?
                     `MATCH (n:${entityType} {id: '${wikidataId}'}) SET n.${property} = '${value}' RETURN n` :
-                    `UPDATE n SET (${property} = '${value}') FROM MATCH (n IS ${entityType.toUpperCase()}) ON ALL_GRAPH WHERE n.id = '${wikidataId}'`
+                    `UPDATE n
+                     SET (${property} = '${value}')
+                     FROM MATCH (n IS ${entityType.toUpperCase()})
+                     ON ALL_GRAPH
+                     WHERE n.id = '${wikidataId}'`
             },
             metadata: {
                 timestamp: new Date().toISOString(),
@@ -1020,8 +1077,8 @@ router.patch('/entity/:entityType/:wikidataId/properties', async (req, res) => {
 // 🔧 GET /api/entity/{entityType}/{wikidataId}/properties - Node Properties abrufen
 router.get('/entity/:entityType/:wikidataId/properties', async (req, res) => {
     try {
-        const { entityType, wikidataId } = req.params;
-        const { db = 'memgraph' } = req.query;
+        const {entityType, wikidataId} = req.params;
+        const {db = 'memgraph'} = req.query;
 
         console.log(`📋 GET Properties: ${entityType}:${wikidataId} | DB: ${db}`);
 
@@ -1076,9 +1133,9 @@ router.get('/entity/:entityType/:wikidataId/properties', async (req, res) => {
 // 🔧 PATCH /api/entity/{entityType}/{wikidataId}/properties/bulk - Mehrere Properties gleichzeitig updaten
 router.patch('/entity/:entityType/:wikidataId/properties/bulk', async (req, res) => {
     try {
-        const { entityType, wikidataId } = req.params;
-        const { updates } = req.body; // Array von {property, value} Objekten
-        const { db = 'memgraph' } = req.query;
+        const {entityType, wikidataId} = req.params;
+        const {updates} = req.body; // Array von {property, value} Objekten
+        const {db = 'memgraph'} = req.query;
 
         console.log(`✏️ BULK UPDATE: ${entityType}:${wikidataId} | ${updates.length} properties | DB: ${db}`);
 
@@ -1110,7 +1167,7 @@ router.patch('/entity/:entityType/:wikidataId/properties/bulk', async (req, res)
                 `n.${update.property} = $value${index}`
             ).join(', ');
 
-            const params = { wikidataId };
+            const params = {wikidataId};
             updates.forEach((update, index) => {
                 params[`value${index}`] = update.value;
             });
@@ -1127,10 +1184,12 @@ router.patch('/entity/:entityType/:wikidataId/properties/bulk', async (req, res)
             // Oracle: Einzelne Updates nacheinander (PGQL unterstützt keine Bulk-Property-Updates)
             for (const update of updates) {
                 const pgqlQuery = `
-                        UPDATE n SET (${update.property} = ?)
-                        FROM MATCH (n IS ${entityType.toUpperCase()}) ON ALL_GRAPH
-                        WHERE n.id = ?
-                    `;
+                    UPDATE n
+                    SET (${update.property} = ?)
+                    FROM MATCH (n IS ${entityType.toUpperCase()})
+                    ON ALL_GRAPH
+                    WHERE n.id = ?
+                `;
 
                 await repo.execute({
                     oracle: pgqlQuery
@@ -1229,7 +1288,7 @@ function generateOracleQuery(queryType, entityType, entityName, relationshipType
                     AND end.name = '${targetEntityName}'
                     COLUMNS(start.name AS start_name,
                     end.name AS end_name,
-                    COUNT(EDGE_ID(e)) AS path_length))`;
+                    COUNT (EDGE_ID(e)) AS path_length))`;
     }
     return '';
 }

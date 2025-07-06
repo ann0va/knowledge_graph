@@ -4,6 +4,11 @@ import { Link, Save, RefreshCw, CheckCircle, AlertCircle, ArrowRight } from 'luc
 import apiService from '../../services/api';
 import EntityDropdown from './shared/EntityDropdown';
 
+import {
+    getEntityTypeLabel,
+    getRelationshipTypeLabel,
+} from './shared/LabelTranslator';
+
 const EdgeCreator = () => {
     const [database, setDatabase] = useState('both'); // 🔧 FIXED: Default to both
     const [relationshipType, setRelationshipType] = useState('WORKS_IN');
@@ -53,43 +58,6 @@ const EdgeCreator = () => {
     // Aktuelle Edge-Konfiguration
     const currentEdgeConfig = edgeConfigs[relationshipType] || {};
     const availableProperties = currentEdgeConfig.properties || [];
-
-    // 🔧 GERMAN LABELS: Relationship Type Labels
-    const getRelationshipTypeLabel = (type) => {
-        const labels = {
-            'WORKS_IN': 'arbeitet in Bereich',
-            'HAS_OCCUPATION': 'hat Beruf',
-            'RECEIVED': 'erhielt Auszeichnung',
-            'BIRTH_IN': 'wurde geboren in',
-            'DIED_IN': 'starb in',
-            'WORKED_AT': 'arbeitete bei',
-            'CREATED': 'erschuf Werk',
-            'STUDENT_OF': 'war Student von',
-            'ADVISED': 'betreute',
-            'PARTNER_OF': 'war Partner von',
-            'RELATIVE_OF': 'ist verwandt mit',
-            'INFLUENCED_BY': 'wurde beeinflusst von',
-            'SIGNIFICANT_PERSON_FOR': 'war bedeutsam für',
-            'FATHER_OF': 'ist Vater von',
-            'MOTHER_OF': 'ist Mutter von',
-            'NATIONAL_OF': 'ist Staatsangehöriger von'
-        };
-        return labels[type] || type;
-    };
-
-    // 🔧 GERMAN LABELS: Entity Type Labels
-    const getEntityTypeLabel = (type) => {
-        const labels = {
-            'person': '👤 Person',
-            'place': '📍 Ort',
-            'work': '📚 Werk',
-            'award': '🏆 Auszeichnung',
-            'field': '🔬 Fachbereich',
-            'occupation': '💼 Beruf',
-            'workplace': '🏢 Arbeitsplatz'
-        };
-        return labels[type] || type;
-    };
 
     // Property-Änderung
     const handlePropertyChange = (property, value) => {

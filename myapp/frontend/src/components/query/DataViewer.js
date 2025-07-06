@@ -1,6 +1,7 @@
 ﻿import React, { useState } from 'react';
 import { RefreshCw, Database, Users, Award, MapPin, Briefcase, FileText, Building } from 'lucide-react';
 import apiService from '../../services/api';
+import {getEntityTypeSimple} from "./shared/LabelTranslator";
 
 const DataViewer = () => {
     const [loading, setLoading] = useState(false);
@@ -373,7 +374,7 @@ const DataViewer = () => {
                             <div className="bg-gray-50 px-4 py-3 border-b">
                                 <h3 className="font-semibold text-gray-900 flex items-center">
                                     {getEntityIcon(entityType)}
-                                    {entityType.charAt(0).toUpperCase() + entityType.slice(1)}
+                                    {getEntityTypeSimple(entityType)}
                                     {entityData?.success === false && (
                                         <span className="ml-2 text-red-600 text-sm">❌ Fehler</span>
                                     )}

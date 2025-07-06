@@ -1,4 +1,4 @@
-﻿// src/repositories/BaseRepository_FIXED.js - Komplett überarbeitet
+﻿// src/repositories/BaseRepository.js
 const { OracleGraphRESTClient } = require('../services/OracleGraphRESTClient');
 
 class BaseRepository {
@@ -10,9 +10,6 @@ class BaseRepository {
             this.pgClient = new OracleGraphRESTClient();
             this.defaultGraph = 'ALL_GRAPH';
         }
-
-        // Memgraph: Wir importieren die Session direkt, wenn nötig
-        // this.db wird nicht mehr verwendet
     }
 
     // Hauptmethode: Query ausführen

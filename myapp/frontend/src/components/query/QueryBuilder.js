@@ -3,7 +3,6 @@
 // =============================================================================
 
 import React, { useState } from 'react';
-import { AlertTriangle } from 'lucide-react';
 import EntityFinder from './EntityFinder';
 import PathFinder from './PathFinder';
 import RelationshipCounter from './RelationshipCounter';
@@ -14,6 +13,8 @@ import PersonUpdater from './PersonUpdater';
 import NodeDeleter from './NodeDeleter';
 import EdgeDeleter from './EdgeDeleter';
 import GraphVisualizer from '../visualization/GraphVisualizer';
+
+
 
 const QueryBuilder = () => {
     const [activeQueryType, setActiveQueryType] = useState('find_related');

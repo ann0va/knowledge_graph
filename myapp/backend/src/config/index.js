@@ -1,4 +1,4 @@
-﻿// src/config/index.js (optional, aber für saubere Struktur empfohlen)
+﻿// src/config/index.js
 require('dotenv').config();
 
 module.exports = {

@@ -1,4 +1,4 @@
-﻿// src/services/PropertyGraphService.js - Integration des AllGraphCreators
+﻿// src/services/PropertyGraphService.js
 const { OracleGraphRESTClient } = require('./OracleGraphRESTClient');
 
 class PropertyGraphService {

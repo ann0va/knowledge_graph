@@ -1,4 +1,4 @@
-﻿// src/repositories/RepositoryFactory.js - Neue schlanke Version
+﻿// src/repositories/RepositoryFactory.js
 const EntityRepository = require('./EntityRepository');
 
 class RepositoryFactory {
@@ -31,25 +31,11 @@ class RepositoryFactory {
         return repository;
     }
 
-    // 🎯 CONVENIENCE: Alle Repositories für einen DB-Type erstellen
-    getAllRepositories(dbType = 'memgraph') {
-        const repositories = {};
-
-        for (const entityType of EntityRepository.getAvailableEntityTypes()) {
-            repositories[entityType] = this.getRepository(entityType, dbType);
-        }
-
-        return repositories;
-    }
+    
 
     // 🎯 UTILITY: Verfügbare Entity-Typen
     getAvailableEntityTypes() {
         return EntityRepository.getAvailableEntityTypes();
-    }
-
-    // 🎯 UTILITY: Entity-Konfiguration abrufen
-    getEntityConfig(entityType) {
-        return EntityRepository.getEntityConfig(entityType);
     }
 
     // 🎯 UTILITY: Alle verfügbaren Relationship-Typen
@@ -57,15 +43,6 @@ class RepositoryFactory {
         return EntityRepository.getAvailableRelationshipTypes();
     }
     
-    // 🎯 CLEANUP: Alle Repositories schließen
-    async closeAll() {
-        for (const repository of this.repositories.values()) {
-            if (repository.close) {
-                await repository.close();
-            }
-        }
-        this.repositories.clear();
-    }
 
     // 🎯 HEALTH: Alle Repositories testen
     async healthCheckAll() {

@@ -1,8 +1,14 @@
-﻿// src/components/query/NodeDeleter.js - FIXED Oracle Search Issue
+﻿// src/components/query/NodeDeleter.js - DEUTSCHE VERSION mit LabelTranslator
 import React, { useState, useEffect } from 'react';
 import { Trash2, Search, AlertTriangle, CheckCircle, AlertCircle, RefreshCw, Bug } from 'lucide-react';
 import apiService from '../../services/api';
 import EntityDropdown from './shared/EntityDropdown';
+import {
+    getEntityTypeLabel,
+    getEntityTypeSimple,
+    getDatabaseLabel,
+    getPlaceholderText
+} from './shared/LabelTranslator';
 
 const NodeDeleter = () => {
     const [entityType, setEntityType] = useState('person');
@@ -42,13 +48,13 @@ const NodeDeleter = () => {
 
     // 🔧 FIXED: Enhanced ID Extraction for Oracle
     const extractIdFromEntity = (entity, database) => {
-        addDebugInfo(`Extracting ID from entity`, { entity, database });
+        addDebugInfo(`ID aus Entity extrahieren`, { entity, database });
 
         if (database === 'oracle') {
             // Oracle: Try different ID fields and extract from parentheses
             let id = entity.id || entity.ID || entity.VERTEX_ID;
 
-            addDebugInfo(`Oracle raw ID fields`, {
+            addDebugInfo(`Oracle Raw-ID-Felder`, {
                 id: entity.id,
                 ID: entity.ID,
                 VERTEX_ID: entity.VERTEX_ID
@@ -59,24 +65,24 @@ const NodeDeleter = () => {
                 const match = id.match(/\(([^)]+)\)/);
                 if (match) {
                     const extractedId = match[1];
-                    addDebugInfo(`Extracted Oracle ID from parentheses: ${extractedId}`);
+                    addDebugInfo(`Oracle-ID aus Klammern extrahiert: ${extractedId}`);
                     return extractedId;
                 }
             }
 
-            addDebugInfo(`Using Oracle ID as-is: ${id}`);
+            addDebugInfo(`Oracle-ID wie gefunden verwendet: ${id}`);
             return id;
         } else {
             // Memgraph: Use standard fields
             const id = entity['e.id'] || entity.id;
-            addDebugInfo(`Memgraph ID: ${id}`);
+            addDebugInfo(`Memgraph-ID: ${id}`);
             return id;
         }
     };
 
     // 🔧 ENHANCED: Entity Name geändert - ID aus gewählter Datenbank extrahieren
     const handleEntityNameChange = async (entityName) => {
-        addDebugInfo(`Entity name changed to: "${entityName}"`);
+        addDebugInfo(`Entity-Name geändert zu: "${entityName}"`);
 
         setSelectedEntityName(entityName);
         setWikidataId('');
@@ -92,11 +98,11 @@ const NodeDeleter = () => {
 
             // Wenn spezifische DB gewählt, dort zuerst suchen
             if (database !== 'both') {
-                addDebugInfo(`Searching in ${database} for entity: ${entityName}`);
+                addDebugInfo(`Suche in ${database} nach Entity: ${entityName}`);
 
                 const searchResult = await apiService.searchEntityNames(entityType, entityName, database, 10);
 
-                addDebugInfo(`Search result for ${database}`, searchResult);
+                addDebugInfo(`Suchergebnis für ${database}`, searchResult);
 
                 if (searchResult.success && searchResult.data.results.length > 0) {
                     // Find exact match first
@@ -105,25 +111,25 @@ const NodeDeleter = () => {
                             ? (entity.NAME || entity.name)
                             : (entity['e.name'] || entity.name);
 
-                        addDebugInfo(`Comparing "${entityNameFromResult}" with "${entityName}"`);
+                        addDebugInfo(`Vergleiche "${entityNameFromResult}" mit "${entityName}"`);
                         return entityNameFromResult === entityName;
                     });
 
                     const entity = exactMatch || searchResult.data.results[0];
-                    addDebugInfo(`Selected entity for ID extraction`, entity);
+                    addDebugInfo(`Gewählte Entity für ID-Extraktion`, entity);
 
                     extractedId = extractIdFromEntity(entity, database);
                 }
             } else {
-                // 🔄 BOTH DATABASES: Parallel suchen und passende ID nehmen
-                addDebugInfo(`Searching in both databases for entity: ${entityName}`);
+                // 🔄 BEIDE DATENBANKEN: Parallel suchen und passende ID nehmen
+                addDebugInfo(`Suche in beiden Datenbanken nach Entity: ${entityName}`);
 
                 const [memgraphResult, oracleResult] = await Promise.allSettled([
                     apiService.searchEntityNames(entityType, entityName, 'memgraph', 10),
                     apiService.searchEntityNames(entityType, entityName, 'oracle', 10)
                 ]);
 
-                addDebugInfo(`Parallel search results`, { memgraphResult, oracleResult });
+                addDebugInfo(`Parallele Suchergebnisse`, { memgraphResult, oracleResult });
 
                 // Memgraph zuerst probieren
                 if (memgraphResult.status === 'fulfilled' && memgraphResult.value.success) {
@@ -151,47 +157,47 @@ const NodeDeleter = () => {
             }
 
             if (extractedId) {
-                addDebugInfo(`Successfully extracted ID: ${extractedId}`);
+                addDebugInfo(`ID erfolgreich extrahiert: ${extractedId}`);
                 setWikidataId(extractedId);
             } else {
-                addDebugInfo(`No ID could be extracted for entity: ${entityName}`);
+                addDebugInfo(`Keine ID konnte für Entity extrahiert werden: ${entityName}`);
             }
         } catch (err) {
-            addDebugInfo(`Error during ID extraction`, err);
-            console.warn('Could not extract Wikidata ID:', err);
+            addDebugInfo(`Fehler bei ID-Extraktion`, err);
+            console.warn('Konnte Wikidata-ID nicht extrahieren:', err);
         }
     };
 
     // 🔧 ENHANCED: Node für Deletion suchen mit verbessertem Error Handling
     const searchNodeForDeletion = async () => {
         if (!wikidataId.trim()) {
-            setError('Please select an entity or enter a Wikidata ID');
+            setError('Bitte wählen Sie eine Entity aus oder geben Sie eine Wikidata-ID ein');
             return;
         }
 
-        addDebugInfo(`Starting node search for deletion`, { entityType, wikidataId, database });
+        addDebugInfo(`Starte Node-Suche für Löschung`, { entityType, wikidataId, database });
 
         setSearching(true);
         setError('');
         setNodeInfo(null);
 
         try {
-            // 🔧 WORKAROUND: For Oracle, try searching by name first if direct ID lookup fails
+            // 🔧 WORKAROUND: Für Oracle, versuche zuerst Suche nach Name wenn direkte ID-Suche fehlschlägt
             let info;
 
             try {
                 info = await apiService.getNodeForDeletion(entityType, wikidataId, database);
-                addDebugInfo(`Direct node search successful`, info);
+                addDebugInfo(`Direkte Node-Suche erfolgreich`, info);
             } catch (directError) {
-                addDebugInfo(`Direct node search failed`, directError);
+                addDebugInfo(`Direkte Node-Suche fehlgeschlagen`, directError);
 
                 if (database === 'oracle' && directError.message.includes('Property does not exist')) {
-                    addDebugInfo(`Trying Oracle workaround: search by name instead of ID`);
+                    addDebugInfo(`Versuche Oracle-Workaround: Suche nach Name statt ID`);
 
-                    // Try to find the entity by searching for it instead of direct ID lookup
+                    // Versuche die Entity durch Suche zu finden statt direkter ID-Suche
                     if (selectedEntityName) {
                         try {
-                            // Search for the entity by name in Oracle
+                            // Suche nach der Entity mit Namen in Oracle
                             const searchResult = await apiService.searchEntityNames(entityType, selectedEntityName, 'oracle', 10);
 
                             if (searchResult.success && searchResult.data.results.length > 0) {
@@ -201,9 +207,9 @@ const NodeDeleter = () => {
                                 });
 
                                 if (foundEntity) {
-                                    addDebugInfo(`Found entity through search workaround`, foundEntity);
+                                    addDebugInfo(`Entity durch Such-Workaround gefunden`, foundEntity);
 
-                                    // Manually construct node info since direct lookup failed
+                                    // Manuell Node-Info erstellen da direkte Suche fehlschlug
                                     info = {
                                         success: true,
                                         node: {
@@ -212,26 +218,26 @@ const NodeDeleter = () => {
                                             ...foundEntity
                                         },
                                         relationshipInfo: {
-                                            total: 0, // We can't get relationships due to the Oracle query issue
+                                            total: 0, // Wir können keine Beziehungen abrufen aufgrund des Oracle-Query-Problems
                                             outgoing: 0,
                                             incoming: 0,
                                             details: null
                                         },
-                                        deletionWarning: 'Oracle ID property issue detected. Relationship count unavailable, but node exists.',
+                                        deletionWarning: 'Oracle-ID-Property-Problem erkannt. Beziehungsanzahl nicht verfügbar, aber Node existiert.',
                                         canDelete: true
                                     };
                                 } else {
-                                    throw new Error(`Entity with ID ${wikidataId} not found in Oracle search results`);
+                                    throw new Error(`Entity mit ID ${wikidataId} nicht in Oracle-Suchergebnissen gefunden`);
                                 }
                             } else {
-                                throw new Error(`No search results found for "${selectedEntityName}" in Oracle`);
+                                throw new Error(`Keine Suchergebnisse für "${selectedEntityName}" in Oracle gefunden`);
                             }
                         } catch (searchError) {
-                            addDebugInfo(`Search workaround also failed`, searchError);
-                            throw directError; // Use original error
+                            addDebugInfo(`Such-Workaround auch fehlgeschlagen`, searchError);
+                            throw directError; // Ursprünglichen Fehler verwenden
                         }
                     } else {
-                        throw new Error(`Oracle backend has a query issue with entity IDs. Please select an entity from the dropdown first, then try again.`);
+                        throw new Error(`Oracle-Backend hat ein Query-Problem mit Entity-IDs. Bitte wählen Sie zuerst eine Entity aus dem Dropdown aus und versuchen Sie es dann erneut.`);
                     }
                 } else {
                     throw directError;
@@ -242,30 +248,30 @@ const NodeDeleter = () => {
             setConfirmationRequired(info.relationshipInfo.total > 0);
 
         } catch (err) {
-            addDebugInfo(`Node search failed completely`, err);
+            addDebugInfo(`Node-Suche vollständig fehlgeschlagen`, err);
 
-            // 🔧 ENHANCED ERROR MESSAGES: Better error explanations
+            // 🔧 ENHANCED ERROR MESSAGES: Bessere Fehlererklärungen
             let errorMessage = err.message;
 
             if (err.message.includes('Property does not exist')) {
-                errorMessage = `⚠️ Oracle Backend Issue Detected:
+                errorMessage = `⚠️ Oracle-Backend-Problem erkannt:
 
-The Oracle database backend has a query problem with the 'e.id' property.
+Das Oracle-Datenbank-Backend hat ein Query-Problem mit der 'e.id' Property.
 
 WORKAROUND:
-1. Select the entity from the dropdown first (this populates the name)
-2. Then try "Search in Oracle" again
-3. Or contact the backend team to fix the Oracle PGQL query
+1. Wählen Sie die Entity zuerst aus dem Dropdown aus (das füllt den Namen)
+2. Versuchen Sie dann "In Oracle suchen" erneut
+3. Oder kontaktieren Sie das Backend-Team um die Oracle-PGQL-Query zu reparieren
 
-Technical Details:
+Technische Details:
 ${err.message}`;
             } else if (err.message.includes('404') || err.message.includes('not found')) {
-                errorMessage = `Node with ID "${wikidataId}" not found in ${database} database. Please check:
-• The Wikidata ID is correct
-• The entity exists in the ${database} database  
-• The entity type (${entityType}) is correct`;
+                errorMessage = `Node mit ID "${wikidataId}" in ${database}-Datenbank nicht gefunden. Bitte prüfen Sie:
+• Die Wikidata-ID ist korrekt
+• Die Entity existiert in der ${database}-Datenbank  
+• Der Entity-Typ (${entityType}) ist korrekt`;
             } else if (err.message.includes('500')) {
-                errorMessage = `Server error when searching in ${database}. Please try again or contact support.`;
+                errorMessage = `Server-Fehler bei der Suche in ${database}. Bitte versuchen Sie es erneut oder kontaktieren Sie den Support.`;
             }
 
             setError(errorMessage);
@@ -277,11 +283,11 @@ ${err.message}`;
     // Node löschen
     const deleteNode = async () => {
         if (!nodeInfo) {
-            setError('Please search for a node first');
+            setError('Bitte suchen Sie zuerst nach einem Node');
             return;
         }
 
-        addDebugInfo(`Starting node deletion`, { entityType, wikidataId, database });
+        addDebugInfo(`Starte Node-Löschung`, { entityType, wikidataId, database });
 
         setDeleting(true);
         setError('');
@@ -290,7 +296,7 @@ ${err.message}`;
         try {
             const deleteResult = await apiService.deleteNode(entityType, wikidataId, database);
 
-            addDebugInfo(`Node deletion successful`, deleteResult);
+            addDebugInfo(`Node-Löschung erfolgreich`, deleteResult);
 
             setResult(deleteResult);
 
@@ -301,7 +307,7 @@ ${err.message}`;
             setConfirmationRequired(false);
 
         } catch (err) {
-            addDebugInfo(`Node deletion failed`, err);
+            addDebugInfo(`Node-Löschung fehlgeschlagen`, err);
             setError(err.message);
         } finally {
             setDeleting(false);
@@ -321,7 +327,7 @@ ${err.message}`;
                 <button
                     onClick={() => setShowDebug(!showDebug)}
                     className="ml-auto p-2 text-gray-400 hover:text-gray-600"
-                    title="Toggle Debug Info"
+                    title="Debug-Info umschalten"
                 >
                     <Bug size={16} />
                 </button>
@@ -332,7 +338,7 @@ ${err.message}`;
                 <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
                     <h4 className="font-medium text-yellow-900 mb-3 flex items-center gap-2">
                         <Bug size={16} />
-                        Debug Information
+                        Debug-Informationen
                     </h4>
                     <div className="max-h-40 overflow-y-auto text-xs space-y-1">
                         {debugInfo.slice(-10).map((info, index) => (
@@ -350,7 +356,7 @@ ${err.message}`;
                         onClick={() => setDebugInfo([])}
                         className="mt-2 text-xs text-yellow-700 hover:text-yellow-900"
                     >
-                        Clear Debug Log
+                        Debug-Log leeren
                     </button>
                 </div>
             )}
@@ -358,24 +364,24 @@ ${err.message}`;
             {/* Entity Type & Database Selection */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                 <div className="space-y-2">
-                    <label className="block text-sm font-medium text-gray-700">Entity Type</label>
+                    <label className="block text-sm font-medium text-gray-700">Entity-Typ</label>
                     <select
                         value={entityType}
                         onChange={(e) => setEntityType(e.target.value)}
                         className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500"
                     >
-                        <option value="person">👤 Person</option>
-                        <option value="place">📍 Place</option>
-                        <option value="work">📚 Work</option>
-                        <option value="award">🏆 Award</option>
-                        <option value="field">🔬 Field</option>
-                        <option value="occupation">💼 Occupation</option>
-                        <option value="workplace">🏢 Workplace</option>
+                        <option value="person">{getEntityTypeLabel('person')}</option>
+                        <option value="place">{getEntityTypeLabel('place')}</option>
+                        <option value="work">{getEntityTypeLabel('work')}</option>
+                        <option value="award">{getEntityTypeLabel('award')}</option>
+                        <option value="field">{getEntityTypeLabel('field')}</option>
+                        <option value="occupation">{getEntityTypeLabel('occupation')}</option>
+                        <option value="workplace">{getEntityTypeLabel('workplace')}</option>
                     </select>
                 </div>
 
                 <div className="space-y-2">
-                    <label className="block text-sm font-medium text-gray-700">Target Database</label>
+                    <label className="block text-sm font-medium text-gray-700">Ziel-Datenbank</label>
                     <select
                         value={database}
                         onChange={(e) => setDatabase(e.target.value)}
@@ -385,35 +391,35 @@ ${err.message}`;
                         <option value="oracle">🔴 Oracle (PGQL)</option>
                     </select>
                     <p className="text-xs text-gray-500">
-                        Dropdown shows entities from both databases, but deletion targets only the selected database.
+                        Dropdown zeigt Entities aus beiden Datenbanken, aber Löschung erfolgt nur in der gewählten Datenbank.
                     </p>
                 </div>
             </div>
 
-            {/* Entity Selection - ENHANCED */}
+            {/* Entity Selection */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
                 <div className="space-y-2">
                     <label className="block text-sm font-medium text-gray-700">
-                        Entity Name
-                        <span className="text-sm text-gray-500 ml-1">(from both databases)</span>
+                        Entity-Name
+                        <span className="text-sm text-gray-500 ml-1">(aus beiden Datenbanken)</span>
                     </label>
                     <EntityDropdown
                         value={selectedEntityName}
                         onChange={handleEntityNameChange}
                         entityType={entityType}
-                        database="both" // 🔧 FIXED: Immer beide DBs anzeigen
-                        placeholder={`Select ${entityType} to delete...`}
+                        database="both"
+                        placeholder={getPlaceholderText(entityType, 'zum Löschen auswählen')}
                         showDatabaseIndicator={true}
                     />
                     <p className="text-xs text-gray-500">
-                        🔵 = Memgraph, 🔴 = Oracle, 🔵🔴 = Both databases
+                        🔵 = Memgraph, 🔴 = Oracle, 🔵🔴 = Beide Datenbanken
                     </p>
                 </div>
 
                 <div className="space-y-2">
                     <label className="block text-sm font-medium text-gray-700">
-                        Wikidata ID
-                        <span className="text-sm text-gray-500 ml-1">(auto-filled or manual entry)</span>
+                        Wikidata-ID
+                        <span className="text-sm text-gray-500 ml-1">(automatisch ausgefüllt oder manuelle Eingabe)</span>
                     </label>
                     <div className="flex gap-2">
                         <input
@@ -435,7 +441,7 @@ ${err.message}`;
                             ) : (
                                 <Search size={16} />
                             )}
-                            Search in {database === 'oracle' ? '🔴 Oracle' : '🔵 Memgraph'}
+                            In {getDatabaseLabel(database)} suchen
                         </button>
                     </div>
                 </div>
@@ -446,7 +452,7 @@ ${err.message}`;
                 <div className="mb-6 p-4 border rounded-lg bg-gray-50">
                     <h4 className="font-medium text-gray-900 mb-3 flex items-center gap-2">
                         <Search size={16} />
-                        Node found in {database}
+                        Node in {database} gefunden
                     </h4>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
@@ -454,19 +460,19 @@ ${err.message}`;
                             <strong>Name:</strong> {nodeInfo.node?.NAME || nodeInfo.node?.name || 'N/A'}
                         </div>
                         <div>
-                            <strong>Wikidata ID:</strong> {wikidataId}
+                            <strong>Wikidata-ID:</strong> {wikidataId}
                         </div>
                         <div>
-                            <strong>Entity Type:</strong> {entityType}
+                            <strong>Entity-Typ:</strong> {getEntityTypeSimple(entityType)}
                         </div>
                         <div>
-                            <strong>Target Database:</strong>
+                            <strong>Ziel-Datenbank:</strong>
                             <span className={`ml-2 px-2 py-1 text-xs rounded ${
                                 database === 'memgraph'
                                     ? 'bg-blue-100 text-blue-800'
                                     : 'bg-red-100 text-red-800'
                             }`}>
-                                {database === 'memgraph' ? '🔵 Memgraph' : '🔴 Oracle'}
+                                {getDatabaseLabel(database)}
                             </span>
                         </div>
                     </div>
@@ -487,7 +493,7 @@ ${err.message}`;
                             </p>
                             {nodeInfo.relationshipInfo.total > 0 && (
                                 <div className="mt-2 text-xs text-yellow-700">
-                                    <strong>Relationships in {database}:</strong> {nodeInfo.relationshipInfo.outgoing} outgoing, {nodeInfo.relationshipInfo.incoming} incoming
+                                    <strong>Beziehungen in {database}:</strong> {nodeInfo.relationshipInfo.outgoing} ausgehend, {nodeInfo.relationshipInfo.incoming} eingehend
                                 </div>
                             )}
                         </div>
@@ -496,7 +502,7 @@ ${err.message}`;
                     {/* Node Properties */}
                     {nodeInfo.node && (
                         <div className="mt-4 p-3 bg-white border rounded text-xs">
-                            <strong>Node Properties ({database}):</strong>
+                            <strong>Node-Eigenschaften ({database}):</strong>
                             <pre className="mt-1 overflow-x-auto text-gray-600">
                                 {JSON.stringify(nodeInfo.node, null, 2)}
                             </pre>
@@ -510,11 +516,11 @@ ${err.message}`;
                 <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
                     <div className="flex items-center gap-2 mb-3">
                         <AlertTriangle className="text-red-600" size={20} />
-                        <h4 className="font-medium text-red-900">⚠️ Confirmation Required</h4>
+                        <h4 className="font-medium text-red-900">⚠️ Bestätigung erforderlich</h4>
                     </div>
                     <p className="text-red-800 text-sm mb-3">
-                        This node has <strong>{nodeInfo.relationshipInfo.total} relationships in {database}</strong> that will be permanently deleted along with the node.
-                        This action cannot be undone.
+                        Dieser Node hat <strong>{nodeInfo.relationshipInfo.total} Beziehungen in {database}</strong>, die zusammen mit dem Node dauerhaft gelöscht werden.
+                        Diese Aktion kann nicht rückgängig gemacht werden.
                     </p>
                     <label className="flex items-center gap-2 text-sm">
                         <input
@@ -524,7 +530,7 @@ ${err.message}`;
                             className="rounded"
                         />
                         <span className="text-red-700">
-                            I understand that this will permanently delete the node from <strong>{database}</strong> and all its {nodeInfo.relationshipInfo.total} relationships.
+                            Ich verstehe, dass dies den Node aus <strong>{database}</strong> und alle seine {nodeInfo.relationshipInfo.total} Beziehungen dauerhaft löscht.
                         </span>
                     </label>
                 </div>
@@ -540,12 +546,12 @@ ${err.message}`;
                     {deleting ? (
                         <>
                             <RefreshCw size={16} className="animate-spin" />
-                            Deleting from {database}...
+                            Lösche aus {database}...
                         </>
                     ) : (
                         <>
                             <Trash2 size={16} />
-                            Delete {entityType} from {database}
+                            {getEntityTypeSimple(entityType)} aus {getDatabaseLabel(database)} löschen
                         </>
                     )}
                 </button>
@@ -562,7 +568,7 @@ ${err.message}`;
                     }}
                     className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
                 >
-                    Reset Form
+                    Formular zurücksetzen
                 </button>
             </div>
 
@@ -571,35 +577,35 @@ ${err.message}`;
                 <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
                     <div className="flex items-center gap-2 mb-3">
                         <CheckCircle className="text-green-600" size={20} />
-                        <h4 className="font-medium text-green-900">✅ Node deleted successfully from {database}!</h4>
+                        <h4 className="font-medium text-green-900">✅ Node erfolgreich aus {database} gelöscht!</h4>
                     </div>
 
                     <div className="space-y-2 text-sm">
                         <div className="grid grid-cols-2 gap-4">
                             <div>
-                                <strong>Deleted Node:</strong> {result.data?.deletedNode?.wikidataId}
+                                <strong>Gelöschter Node:</strong> {result.data?.deletedNode?.wikidataId}
                             </div>
                             <div>
-                                <strong>Target Database:</strong>
+                                <strong>Ziel-Datenbank:</strong>
                                 <span className={`ml-2 px-2 py-1 text-xs rounded ${
                                     result.data?.database === 'memgraph'
                                         ? 'bg-blue-100 text-blue-800'
                                         : 'bg-red-100 text-red-800'
                                 }`}>
-                                    {result.data?.database === 'memgraph' ? '🔵 Memgraph' : '🔴 Oracle'}
+                                    {getDatabaseLabel(result.data?.database)}
                                 </span>
                             </div>
                             <div>
-                                <strong>Entity Type:</strong> {result.data?.deletedNode?.entityType}
+                                <strong>Entity-Typ:</strong> {getEntityTypeSimple(result.data?.deletedNode?.entityType)}
                             </div>
                             <div>
-                                <strong>Deleted Edges:</strong> {result.data?.deletedEdges?.count || 0}
+                                <strong>Gelöschte Edges:</strong> {result.data?.deletedEdges?.count || 0}
                             </div>
                         </div>
 
                         {result.data?.deletedEdges?.count > 0 && (
                             <div className="mt-3 p-3 bg-white border rounded text-xs">
-                                <strong>Deleted Relationships:</strong>
+                                <strong>Gelöschte Beziehungen:</strong>
                                 <pre className="mt-1 overflow-x-auto">
                                     {JSON.stringify(result.data.deletedEdges.details, null, 2)}
                                 </pre>
@@ -614,7 +620,7 @@ ${err.message}`;
                 <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
                     <div className="flex items-center gap-2 mb-2">
                         <AlertCircle className="text-red-600" size={20} />
-                        <h4 className="font-medium text-red-900">❌ Search/Deletion failed</h4>
+                        <h4 className="font-medium text-red-900">❌ Suche/Löschung fehlgeschlagen</h4>
                     </div>
                     <pre className="text-red-700 text-sm whitespace-pre-wrap">{error}</pre>
                 </div>
@@ -624,12 +630,12 @@ ${err.message}`;
             <div className="mt-6 p-4 bg-red-50 border border-red-200 rounded-lg text-sm">
                 <h5 className="font-medium text-red-900 mb-2">⚠️ Wichtige Hinweise:</h5>
                 <ul className="text-red-800 space-y-1">
-                    <li>• <strong>Multi-Database View:</strong> Dropdown zeigt Entities aus beiden Datenbanken</li>
-                    <li>• <strong>Target Database:</strong> Deletion erfolgt nur in der gewählten Ziel-Datenbank</li>
-                    <li>• <strong>Oracle IDs:</strong> Werden automatisch aus (Q1234) Format extrahiert</li>
+                    <li>• <strong>Multi-Datenbank-Ansicht:</strong> Dropdown zeigt Entities aus beiden Datenbanken</li>
+                    <li>• <strong>Ziel-Datenbank:</strong> Löschung erfolgt nur in der gewählten Ziel-Datenbank</li>
+                    <li>• <strong>Oracle-IDs:</strong> Werden automatisch aus (Q1234) Format extrahiert</li>
                     <li>• <strong>Unwiderruflich:</strong> Gelöschte Nodes und Edges können nicht wiederhergestellt werden</li>
-                    <li>• <strong>Cascade Delete:</strong> Alle Beziehungen des Nodes werden automatisch mit gelöscht</li>
-                    <li>• <strong>Debug Mode:</strong> Klicke auf <Bug size={12} className="inline" /> für detaillierte Logs</li>
+                    <li>• <strong>Kaskadenlöschung:</strong> Alle Beziehungen des Nodes werden automatisch mit gelöscht</li>
+                    <li>• <strong>Debug-Modus:</strong> Klicke auf <Bug size={12} className="inline" /> für detaillierte Logs</li>
                 </ul>
             </div>
         </div>
